@@ -166,3 +166,82 @@ where
     info!("All power rails configured per Core2 v1.1 schematic");
     Ok(())
 }
+
+/// Set LCD backlight brightness for M5Stack Core2 v1.1
+///
+/// On Core2 v1.1, the LCD backlight is controlled by the BLDO1 output of the AXP2101 PMIC.
+/// Unlike PWM-based backlight control, this adjusts brightness by varying the voltage
+/// supplied to the backlight LED driver.
+///
+/// # How it works
+///
+/// The backlight circuit uses BLDO1 as the power supply. By changing the BLDO1 voltage,
+/// we effectively control the current through the backlight LEDs, which changes brightness.
+///
+/// - BLDO1 voltage range: 500mV to 3500mV (0.5V to 3.5V)
+/// - Practical backlight range: ~2000mV to 3300mV
+///   - Below ~2000mV: backlight is very dim or off
+///   - At 3300mV: maximum brightness
+///
+/// # Brightness mapping
+///
+/// This function maps a 0-100 percent brightness value to a voltage:
+/// - percent = 0: BLDO1 is disabled (backlight completely off)
+/// - percent = 1-100: Maps to ~2000mV to 3300mV
+///
+/// Values above 100 are clamped to 100.
+///
+/// # Arguments
+///
+/// * `axp` - Mutable reference to the AXP2101 driver
+/// * `percent` - Brightness level from 0 (off) to 100 (maximum)
+///
+/// # Example
+///
+/// ```ignore
+/// // Set backlight to 50% brightness
+/// set_backlight_brightness(&mut axp, 50).await?;
+///
+/// // Turn off backlight
+/// set_backlight_brightness(&mut axp, 0).await?;
+///
+/// // Maximum brightness
+/// set_backlight_brightness(&mut axp, 100).await?;
+/// ```
+pub async fn set_backlight_brightness<I2C>(
+    axp: &mut Axp2101Async<axp2101_dd::AxpInterface<I2C>, I2cError>,
+    percent: u8,
+) -> Result<(), AxpError<I2cError>>
+where
+    I2C: embedded_hal_async::i2c::I2c<Error = I2cError>,
+{
+    // Clamp percent to 0-100 range
+    let percent = percent.min(100);
+
+    if percent == 0 {
+        // Disable BLDO1 completely to turn off backlight
+        axp.set_ldo_enable(LdoId::Bldo1, false).await?;
+        info!("Backlight disabled");
+    } else {
+        // Map percent 1-100 to voltage 2000-3300mV
+        // Formula: voltage = 2000 + (percent - 1) * (3300 - 2000) / 99
+        //        = 2000 + (percent - 1) * 1300 / 99
+        //        ≈ 2000 + (percent - 1) * 13.13
+        //
+        // At percent=1:   voltage = 2000mV (minimum visible brightness)
+        // At percent=50:  voltage = 2000 + 49 * 1300 / 99 ≈ 2643mV
+        // At percent=100: voltage = 2000 + 99 * 1300 / 99 = 3300mV (maximum)
+        let voltage_mv = 2000 + ((percent as u32 - 1) * 1300 / 99);
+
+        // Set BLDO1 voltage (controls backlight brightness)
+        axp.set_ldo_voltage_mv(LdoId::Bldo1, voltage_mv as u16)
+            .await?;
+
+        // Ensure BLDO1 is enabled
+        axp.set_ldo_enable(LdoId::Bldo1, true).await?;
+
+        info!("Backlight set to {}% ({}mV)", percent, voltage_mv);
+    }
+
+    Ok(())
+}

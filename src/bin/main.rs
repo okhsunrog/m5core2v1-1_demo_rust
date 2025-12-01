@@ -6,12 +6,13 @@
     holding buffers for the duration of a data transfer."
 )]
 
+use alloc::vec;
 use embassy_embedded_hal::shared_bus::asynch::spi::SpiDevice;
 use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
-use embedded_graphics::mono_font::{ascii::FONT_10X20, MonoTextStyle};
+use embedded_graphics::mono_font::{MonoTextStyle, ascii::FONT_10X20};
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 use embedded_graphics::text::Text;
@@ -21,21 +22,20 @@ use esp_hal::dma::{DmaRxBuf, DmaTxBuf};
 use esp_hal::dma_buffers;
 use esp_hal::gpio::{Level, Output, OutputConfig};
 use esp_hal::i2c::master::{Config as I2cConfig, I2c};
-use esp_hal::spi::master::{Config as SpiConfig, Spi, SpiDmaBus};
 use esp_hal::spi::Mode as SpiMode;
+use esp_hal::spi::master::{Config as SpiConfig, Spi, SpiDmaBus};
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
+use heapless::String;
 use lcd_async::models::ILI9342CRgb565;
 use lcd_async::options::{ColorInversion, Orientation, Rotation};
 use lcd_async::raw_framebuf::RawFrameBuf;
-use lcd_async::{interface, Builder};
+use lcd_async::{Builder, interface};
 use log::info;
-use alloc::vec;
-use heapless::String;
 use static_cell::StaticCell;
 
 use core::fmt::Write;
-use m5core2v1_1_esp_hal_demo::pmic;
+use m5core2v1_1_esp_hal_demo::pmic::{self, set_backlight_brightness};
 
 extern crate alloc;
 
@@ -78,6 +78,9 @@ async fn main(spawner: Spawner) -> ! {
 
     // Configure all power rails (including display power and backlight)
     pmic::configure_all_rails(&mut axp).await.unwrap();
+
+    // Set backlight to 50% brightness
+    set_backlight_brightness(&mut axp, 50).await.unwrap();
 
     // Give power rails time to stabilize
     Timer::after(Duration::from_millis(50)).await;
