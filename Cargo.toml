@@ -9,7 +9,7 @@ name = "m5core2v1-1_esp-hal_demo"
 path = "./src/bin/main.rs"
 
 [dependencies]
-esp-hal = { version = "1.0.0", features = ["esp32", "log-04", "unstable"] }
+esp-hal = { version = "1.0.0", features = ["esp32", "log-04", "unstable", "psram"] }
 
 esp-rtos = { version = "0.2.0", features = [
   "embassy",
@@ -33,11 +33,18 @@ esp-println = { version = "0.16.1", features = ["esp32", "log-04"] }
 
 critical-section = "1.2.0"
 static_cell      = "2.1.1"
+heapless         = "0.8"
 
 # PMIC (AXP2101) driver
 axp2101-dd = { path = "../axp2101-dd", features = ["log"] }
 embedded-hal = "1.0"
 embedded-hal-async = "1.0"
+
+# Display driver
+lcd-async = { path = "../lcd-async" }
+embedded-graphics = "0.8"
+embassy-embedded-hal = "0.5"
+embassy-sync = "0.7"
 
 
 [profile.dev]
