@@ -10,8 +10,12 @@ use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
 use esp_hal::clock::CpuClock;
+use esp_hal::i2c::master::{Config as I2cConfig, I2c};
+use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use log::info;
+
+use m5core2v1_1_esp_hal_demo::pmic;
 
 extern crate alloc;
 
@@ -34,6 +38,21 @@ async fn main(spawner: Spawner) -> ! {
     esp_rtos::start(timg0.timer0);
 
     info!("Embassy initialized!");
+
+    // M5Stack Core2 v1.1: GPIO21 (SDA) and GPIO22 (SCL) for internal I2C bus
+    let i2c_config = I2cConfig::default().with_frequency(Rate::from_khz(400));
+    let i2c = I2c::new(peripherals.I2C0, i2c_config)
+        .unwrap()
+        .with_sda(peripherals.GPIO21)
+        .with_scl(peripherals.GPIO22)
+        .into_async();
+
+    // Initialize PMIC
+    info!("Initializing PMIC...");
+    let mut axp = pmic::init_pmic(i2c).await.unwrap();
+
+    // Configure all power rails
+    pmic::configure_all_rails(&mut axp).await.unwrap();
 
     // TODO: Spawn some tasks
     let _ = spawner;

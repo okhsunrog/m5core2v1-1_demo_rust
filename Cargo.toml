@@ -34,6 +34,11 @@ esp-println = { version = "0.16.1", features = ["esp32", "log-04"] }
 critical-section = "1.2.0"
 static_cell      = "2.1.1"
 
+# PMIC (AXP2101) driver
+axp2101-dd = { path = "../axp2101-dd", features = ["log"] }
+embedded-hal = "1.0"
+embedded-hal-async = "1.0"
+
 
 [profile.dev]
 # Rust debug is too slow.
