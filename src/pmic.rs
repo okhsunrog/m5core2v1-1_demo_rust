@@ -146,10 +146,9 @@ where
     axp.set_ldo_enable(LdoId::Aldo2, true).await?;
     axp.set_ldo_voltage_mv(LdoId::Aldo2, 3300).await?;
 
-    // ALDO3: Speaker enable (NS4168 SPK_EN)
-    info!("  ALDO3: Speaker Enable 3.3V");
-    axp.set_ldo_enable(LdoId::Aldo3, true).await?;
-    axp.set_ldo_voltage_mv(LdoId::Aldo3, 3300).await?;
+    // ALDO3: Speaker enable (NS4168 SPK_EN) - disabled to save power
+    info!("  ALDO3: Speaker (disabled)");
+    axp.set_ldo_enable(LdoId::Aldo3, false).await?;
 
     // BLDO1: LCD backlight (ILI9342C BL)
     info!("  BLDO1: LCD Backlight 3.3V");
