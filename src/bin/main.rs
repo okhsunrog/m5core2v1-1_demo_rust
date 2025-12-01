@@ -10,11 +10,17 @@ use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
 use esp_hal::clock::CpuClock;
+use esp_hal::dma::{DmaRxBuf, DmaTxBuf};
+use esp_hal::dma_buffers;
+use esp_hal::gpio::{Level, Output, OutputConfig};
 use esp_hal::i2c::master::{Config as I2cConfig, I2c};
+use esp_hal::spi::master::{Config as SpiConfig, Spi};
+use esp_hal::spi::Mode as SpiMode;
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use log::info;
 
+use m5core2v1_1_esp_hal_demo::display::{colors, DisplayDma};
 use m5core2v1_1_esp_hal_demo::pmic;
 
 extern crate alloc;
@@ -51,8 +57,68 @@ async fn main(spawner: Spawner) -> ! {
     info!("Initializing PMIC...");
     let mut axp = pmic::init_pmic(i2c).await.unwrap();
 
-    // Configure all power rails
+    // Configure all power rails (including display power and backlight)
     pmic::configure_all_rails(&mut axp).await.unwrap();
+
+    // Give power rails time to stabilize
+    Timer::after(Duration::from_millis(50)).await;
+
+    // Initialize SPI for display
+    // M5Stack Core2 v1.1 SPI pins:
+    // - GPIO18: SCLK
+    // - GPIO23: MOSI
+    // - GPIO38: MISO (not used for display, but needed for SPI bus)
+    // - GPIO5:  LCD CS
+    // - GPIO15: LCD DC (Data/Command)
+    info!("Initializing SPI for display...");
+
+    let spi_config = SpiConfig::default()
+        .with_frequency(Rate::from_mhz(20))
+        .with_mode(SpiMode::_0);
+
+    // Create DMA buffers for SPI
+    let (rx_buffer, rx_descriptors, tx_buffer, tx_descriptors) = dma_buffers!(1024);
+    let dma_rx_buf = DmaRxBuf::new(rx_descriptors, rx_buffer).unwrap();
+    let dma_tx_buf = DmaTxBuf::new(tx_descriptors, tx_buffer).unwrap();
+
+    let spi = Spi::new(peripherals.SPI2, spi_config)
+        .unwrap()
+        .with_sck(peripherals.GPIO18)
+        .with_mosi(peripherals.GPIO23)
+        .with_miso(peripherals.GPIO38)
+        .with_dma(peripherals.DMA_SPI2)
+        .with_buffers(dma_rx_buf, dma_tx_buf)
+        .into_async();
+
+    // LCD control pins
+    let cs = Output::new(peripherals.GPIO5, Level::High, OutputConfig::default());
+    let dc = Output::new(peripherals.GPIO15, Level::High, OutputConfig::default());
+
+    // Create display driver
+    let mut display = DisplayDma::new(spi, cs, dc);
+
+    // Initialize display
+    display.init().await;
+
+    // Draw test pattern
+    info!("Drawing test pattern...");
+
+    // Fill screen black first
+    display.fill_screen(colors::BLACK).await;
+    Timer::after(Duration::from_millis(100)).await;
+
+    // Draw colored rectangles
+    display.fill_rect(20, 20, 80, 60, colors::RED).await;
+    display.fill_rect(120, 20, 80, 60, colors::GREEN).await;
+    display.fill_rect(220, 20, 80, 60, colors::BLUE).await;
+
+    display.fill_rect(20, 100, 80, 60, colors::YELLOW).await;
+    display.fill_rect(120, 100, 80, 60, colors::CYAN).await;
+    display.fill_rect(220, 100, 80, 60, colors::MAGENTA).await;
+
+    display.fill_rect(20, 180, 280, 40, colors::WHITE).await;
+
+    info!("Display test complete!");
 
     // TODO: Spawn some tasks
     let _ = spawner;
