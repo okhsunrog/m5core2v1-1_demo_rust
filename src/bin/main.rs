@@ -17,7 +17,6 @@ use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 use embedded_graphics::text::Text;
 use esp_backtrace as _;
-use esp_hal::clock::CpuClock;
 use esp_hal::dma::{DmaRxBuf, DmaTxBuf};
 use esp_hal::dma_buffers;
 use esp_hal::gpio::{Level, Output, OutputConfig};
@@ -53,11 +52,24 @@ async fn main(spawner: Spawner) -> ! {
 
     esp_println::logger::init_logger_from_env();
 
-    let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
+    // Note: CpuClock::max() (240MHz) is broken with PSRAM on ESP32 in esp-hal 1.0.0.
+    // PSRAM init calls ROM function esp_rom_spiflash_config_clk() which switches
+    // SOC_CLK_SEL from PLL back to XTAL and leaves PLL in an unstable state.
+    // See: https://github.com/esp-rs/esp-hal/issues/XXXX
+    // Using default clock (80MHz) as workaround - bootloader leaves PLL untouched.
+    let config = esp_hal::Config::default();
     let peripherals = esp_hal::init(config);
 
-    // Use PSRAM for heap (Core2 has 8MB PSRAM)
+    // Use PSRAM for heap (Core2 has 8MB PSRAM, but ESP32 can only map 4MB)
     esp_alloc::psram_allocator!(&peripherals.PSRAM, esp_hal::psram);
+
+    let (psram_ptr, psram_size) = esp_hal::psram::psram_raw_parts(&peripherals.PSRAM);
+    info!(
+        "PSRAM mapped: {} KB ({} bytes) at {:?}",
+        psram_size / 1024,
+        psram_size,
+        psram_ptr
+    );
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_rtos::start(timg0.timer0);
