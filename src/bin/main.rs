@@ -112,6 +112,19 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
     let mut axp = pmic::init_pmic(i2c_pmic).await.unwrap();
     pmic::configure_all_rails(&mut axp).await.unwrap();
     set_backlight(&mut axp, Backlight::On(50)).await.unwrap();
+
+    // Short vibration on boot
+    axp.set_ldo_voltage_mv(axp2101_dd::LdoId::Dldo1, 3300)
+        .await
+        .unwrap();
+    axp.set_ldo_enable(axp2101_dd::LdoId::Dldo1, true)
+        .await
+        .unwrap();
+    Timer::after(Duration::from_millis(200)).await;
+    axp.set_ldo_enable(axp2101_dd::LdoId::Dldo1, false)
+        .await
+        .unwrap();
+
     Timer::after(Duration::from_millis(300)).await;
 
     // --- Touch controller init ---

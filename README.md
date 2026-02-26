@@ -1,6 +1,6 @@
 # M5Stack Core2 v1.1 Demo (Rust / esp-hal)
 
-A feature-rich demo application for the [M5Stack Core2 v1.1](https://docs.m5stack.com/en/core/core2_v1.1) running bare-metal Rust with [esp-hal](https://github.com/esp-rs/esp-hal) and [Embassy](https://embassy.dev/) async runtime.
+A feature-rich demo application for the [M5Stack Core2 v1.1](https://docs.m5stack.com/en/core/Core2%20v1.1) running bare-metal Rust with [esp-hal](https://github.com/esp-rs/esp-hal) and [Embassy](https://embassy.dev/) async runtime.
 
 ## Features
 

@@ -72,14 +72,15 @@ where
         })
         .await?;
 
-    // 5. CHGLED setting (0x69 = 0x13)
-    // 0x13 = 0b00010011: chgled_out_ctrl=001, chgled_func=01, chgled_en=1
+    // 5. CHGLED setting — blue LED near power button
+    // Current config: blinks during charging, off when full (charger indicator mode).
+    // Can be customized: chgled_func(0)=off, (1)=charge indicator, (2)=manual on, (3)=manual off
     axp.ll
         .chg_led_control()
         .write_async(|w| {
-            w.set_chgled_en(true); // Bit 0: Enable CHGLED
-            w.set_chgled_func(1); // Bits 1-2: Function mode 1
-            w.set_chgled_out_ctrl(1); // Bits 4-6: Output control mode 1
+            w.set_chgled_en(true);
+            w.set_chgled_func(1);
+            w.set_chgled_out_ctrl(1);
         })
         .await?;
 
