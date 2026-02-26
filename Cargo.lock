@@ -2133,6 +2133,8 @@ dependencies = [
 [[package]]
 name = "ft6336u-dd"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b06c95a4f8e90eeeabcddad682253b40954fb607175013872a1f67ba66e8f13"
 dependencies = [
  "bisync",
  "device-driver",
