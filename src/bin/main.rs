@@ -16,6 +16,7 @@ use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Instant, Timer};
 use esp_backtrace as _;
 use esp_hal::dma::{DmaRxBuf, DmaTxBuf};
+use esp_hal::ram;
 use esp_hal::dma_buffers;
 use esp_hal::gpio::{Level, Output, OutputConfig};
 use esp_hal::i2c::master::{Config as I2cConfig, I2c};
@@ -54,7 +55,11 @@ async fn main(spawner: Spawner) -> ! {
     let config = esp_hal::Config::default().with_cpu_clock(esp_hal::clock::CpuClock::max());
     let peripherals = esp_hal::init(config);
 
-    // Use PSRAM for heap (Core2 has 8MB PSRAM, but ESP32 can only map 4MB)
+    // SRAM heap for general allocations (Slint internals, format!, Box, etc.)
+    esp_alloc::heap_allocator!(size: 72 * 1024);
+    esp_alloc::heap_allocator!(#[ram(reclaimed)] size: 96 * 1024);
+
+    // PSRAM region for the large framebuffer only
     esp_alloc::psram_allocator!(&peripherals.PSRAM, esp_hal::psram);
 
     let (psram_ptr, psram_size) = esp_hal::psram::psram_raw_parts(&peripherals.PSRAM);
@@ -164,9 +169,11 @@ async fn main(spawner: Spawner) -> ! {
     ui.set_dma_buf_size(format!("{} KB", DMA_BUF_SIZE / 1024).into());
     ui.set_backlight_value(0.5);
 
-    // Allocate pixel buffer on PSRAM
+    // Allocate pixel buffer on PSRAM (150KB — too large for SRAM)
     let num_pixels = (WIDTH as usize) * (HEIGHT as usize);
-    let mut pixel_buf = alloc::vec![Rgb565Pixel(0); num_pixels];
+    let mut pixel_buf =
+        allocator_api2::vec::Vec::with_capacity_in(num_pixels, esp_alloc::ExternalMemory);
+    pixel_buf.resize(num_pixels, Rgb565Pixel(0));
 
     let _ = spawner;
 

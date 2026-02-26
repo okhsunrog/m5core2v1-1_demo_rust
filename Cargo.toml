@@ -47,6 +47,7 @@ embassy-embedded-hal = "0.5"
 embassy-sync = "0.7"
 ft6336u-dd = { version = "0.1.0", features = ["log"] }
 slint = { version = "1.15.1", default-features = false, features = ["unsafe-single-threaded", "libm", "renderer-software", "compat-1-2"] }
+allocator-api2 = { version = "0.3.0", default-features = false, features = ["alloc"] }
 
 
 [profile.dev]
