@@ -44,7 +44,7 @@ esp_bootloader_esp_idf::esp_app_desc!();
 
 const WIDTH: u16 = 320;
 const HEIGHT: u16 = 240;
-const SPI_FREQ_MHZ: u32 = 20;
+const SPI_FREQ_MHZ: u32 = 30;
 const DMA_BUF_SIZE: usize = 32_000;
 
 #[esp_rtos::main]
