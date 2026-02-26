@@ -37,12 +37,12 @@ static_cell      = "2.1.1"
 heapless         = "0.8"
 
 # PMIC (AXP2101) driver
-axp2101-dd = { path = "../axp2101-dd", features = ["log"] }
+axp2101-dd = { version = "0.2.2", features = ["log"] }
 embedded-hal = "1.0"
 embedded-hal-async = "1.0"
 
 # Display driver
-lcd-async = { path = "../lcd-async" }
+lcd-async = "0.1.1"
 embedded-graphics = "0.8"
 embassy-embedded-hal = "0.5"
 embassy-sync = "0.7"
@@ -50,7 +50,7 @@ ft6336u-dd = { version = "0.1.0", features = ["log"] }
 slint = { version = "1.15.1", default-features = false, features = ["unsafe-single-threaded", "libm", "renderer-software", "compat-1-2"] }
 allocator-api2 = { version = "0.3.0", default-features = false, features = ["alloc"] }
 ina3221-dd = { version = "0.1.0", features = ["log"] }
-pcf8563-dd = { version = "0.2.0", path = "../pcf8563-dd", features = ["log"] }
+pcf8563-dd = { version = "0.3.0", features = ["log"] }
 
 # BLE
 esp-radio = { git = "https://github.com/esp-rs/esp-hal", rev = "04c4243c", features = [

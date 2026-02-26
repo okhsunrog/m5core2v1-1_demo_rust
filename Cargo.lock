@@ -400,6 +400,8 @@ dependencies = [
 [[package]]
 name = "axp2101-dd"
 version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22a5e0358cdf1495fcb38c1067abacb6d335b8d74b74f98c122a792dbd5a45ab"
 dependencies = [
  "bisync",
  "device-driver",
@@ -3346,6 +3348,8 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 [[package]]
 name = "lcd-async"
 version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "362f088c5c176ceedd4d0e817d17ae3b79480495deac605158a7cd86450450c5"
 dependencies = [
  "embedded-graphics",
  "embedded-graphics-core",
@@ -4310,7 +4314,9 @@ checksum = "35fb2e5f958ec131621fdd531e9fc186ed768cbe395337403ae56c17a74c68ec"
 
 [[package]]
 name = "pcf8563-dd"
-version = "0.2.0"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e471725925734ba8b11f52c759779992d672cea6117d11e0a21ee1d855eda24"
 dependencies = [
  "bisync",
  "device-driver",
