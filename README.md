@@ -2,6 +2,16 @@
 
 A feature-rich demo application for the [M5Stack Core2 v1.1](https://docs.m5stack.com/en/core/Core2%20v1.1) running bare-metal Rust with [esp-hal](https://github.com/esp-rs/esp-hal) and [Embassy](https://embassy.dev/) async runtime.
 
+## Screenshots
+
+| Status | Controls | Animations |
+|--------|----------|------------|
+| ![Status tab](images/photo_2026-02-27_00-10-48.jpg) | ![Controls tab](images/photo_2026-02-27_00-11-05.jpg) | ![Animations tab](images/photo_2026-02-27_00-11-10.jpg) |
+
+| System (hardware) | System (controls) |
+|--------------------|--------------------|
+| ![System tab top](images/photo_2026-02-27_00-11-18.jpg) | ![System tab bottom](images/photo_2026-02-27_00-11-15.jpg) |
+
 ## Features
 
 - **Slint UI** with tabbed interface (Status, Controls, Animations, System)
