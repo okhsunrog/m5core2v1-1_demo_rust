@@ -3103,9 +3103,9 @@ checksum = "e7c5cedc30da3a610cac6b4ba17597bdf7152cf974e8aab3afb3d54455e371c8"
 
 [[package]]
 name = "ina3221-dd"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bdf7f19578129a7161527e6671f1895807adb80034f852c30bf8ca03c7ab5d53"
+checksum = "d2f992f97b5087c3ffef18e77308dc3a8eb9a9d963844ccc368bd4450d29c9f1"
 dependencies = [
  "bisync",
  "device-driver",
@@ -3347,9 +3347,9 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "lcd-async"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "362f088c5c176ceedd4d0e817d17ae3b79480495deac605158a7cd86450450c5"
+checksum = "bece94f4add612b896e750c800f04a703020491236a31fe81f9f7e2afb6ccc21"
 dependencies = [
  "embedded-graphics",
  "embedded-graphics-core",

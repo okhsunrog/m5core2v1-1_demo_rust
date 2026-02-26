@@ -285,7 +285,12 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
                 pmic_timer = Instant::now();
 
                 let battery_mv = axp.get_battery_voltage_mv().await.unwrap_or(0);
-                let vbus_mv = axp.get_vbus_voltage_mv().await.unwrap_or(0);
+                let vbus_good = axp.is_vbus_good().await.unwrap_or(false);
+                let vbus_mv = if vbus_good {
+                    axp.get_vbus_voltage_mv().await.unwrap_or(0)
+                } else {
+                    0
+                };
                 let vsys_mv = axp.get_vsys_voltage_mv().await.unwrap_or(0);
                 let temp_c = axp.get_die_temperature_c().await.unwrap_or(0.0);
                 let soc = axp

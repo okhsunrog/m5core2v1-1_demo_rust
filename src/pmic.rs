@@ -3,7 +3,7 @@
 //! This module provides async initialization and configuration for the AXP2101
 //! power management IC on the M5Stack Core2 v1.1 board.
 
-use axp2101_dd::{AdcChannel, Axp2101Async, AxpError, LdoId};
+use axp2101_dd::{AdcChannel, Axp2101Async, AxpError, FastChargeCurrentLimit, LdoId};
 use log::info;
 
 /// Initialize the AXP2101 PMIC following M5Stack Core2 v1.1 initialization sequence
@@ -86,7 +86,11 @@ where
     // 6. DLDO1 set 0.5V - vibration motor OFF (0x99 = 0x00)
     axp.set_ldo_voltage_mv(LdoId::Dldo1, 500).await?;
 
-    // 7. Enable ADC channels for monitoring
+    // 7. Set fast charge current to 500mA (battery is 500mAh, 1C rate)
+    axp.set_battery_charge_current(FastChargeCurrentLimit::Ma500)
+        .await?;
+
+    // 8. Enable ADC channels for monitoring
     axp.set_adc_channel_enable(AdcChannel::BatteryVoltage, true)
         .await?;
     axp.set_adc_channel_enable(AdcChannel::VbusVoltage, true)
