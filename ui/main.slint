@@ -228,13 +228,13 @@ export component MainWindow inherits Window {
 
         // === Tab 2: Animations ===
         if active-tab == 2: VerticalLayout {
-            spacing: 8px;
+            spacing: 4px;
             vertical-stretch: 1;
 
-            Text { text: "Bouncing Ball"; color: #aaaaaa; font-size: 13px; }
+            Text { text: "Bouncing Ball"; color: #aaaaaa; font-size: 12px; }
 
             Rectangle {
-                height: 30px;
+                height: 24px;
                 background: transparent;
 
                 ball := Rectangle {
@@ -242,14 +242,14 @@ export component MainWindow inherits Window {
                     property <float> ease-t: 0.5 - 0.5 * Math.cos(t * 3.14159 * 2 * 1rad);
 
                     x: ease-t * (parent.width - self.width);
-                    width: 30px;
-                    height: 30px;
-                    border-radius: 15px;
-                    background: @linear-gradient(135deg, #00d4ff, #ff44aa);
+                    width: 24px;
+                    height: 24px;
+                    border-radius: 12px;
+                    background: #00d4ff;
                 }
             }
 
-            Text { text: "Progress Bars"; color: #aaaaaa; font-size: 13px; }
+            Text { text: "Progress Bars"; color: #aaaaaa; font-size: 12px; }
 
             ProgressBar {
                 property <float> t: Math.mod(animation-tick() / 1ms / 3000, 1.0);
@@ -269,13 +269,35 @@ export component MainWindow inherits Window {
 
             Rectangle { height: 1px; background: #222244; }
 
-            // Color cycling rectangle
+            // Color cycling rectangle — solid bands scrolling left (avoids gradient renderer artifacts)
             Rectangle {
-                height: 40px;
-                border-radius: 8px;
-                property <float> t: Math.mod(animation-tick() / 1ms / 5000, 1.0);
-                background: @linear-gradient(90deg + (t * 360deg),
-                    #ff0044, #ff8800, #ffff00, #00ff88, #00d4ff, #8844ff, #ff0044);
+                vertical-stretch: 1;
+                min-height: 4px;
+                clip: true;
+
+                property <float> t: Math.mod(animation-tick() / 1ms / 3000, 1.0);
+
+                // Double-wide container with solid color bands, scrolling left
+                Rectangle {
+                    x: -t * parent.width;
+                    width: parent.width * 2;
+                    height: parent.height;
+
+                    HorizontalLayout {
+                        Rectangle { background: #ff0044; horizontal-stretch: 1; }
+                        Rectangle { background: #ff8800; horizontal-stretch: 1; }
+                        Rectangle { background: #ffff00; horizontal-stretch: 1; }
+                        Rectangle { background: #00ff88; horizontal-stretch: 1; }
+                        Rectangle { background: #00d4ff; horizontal-stretch: 1; }
+                        Rectangle { background: #8844ff; horizontal-stretch: 1; }
+                        Rectangle { background: #ff0044; horizontal-stretch: 1; }
+                        Rectangle { background: #ff8800; horizontal-stretch: 1; }
+                        Rectangle { background: #ffff00; horizontal-stretch: 1; }
+                        Rectangle { background: #00ff88; horizontal-stretch: 1; }
+                        Rectangle { background: #00d4ff; horizontal-stretch: 1; }
+                        Rectangle { background: #8844ff; horizontal-stretch: 1; }
+                    }
+                }
 
                 Text {
                     text: "Rainbow";
@@ -286,8 +308,6 @@ export component MainWindow inherits Window {
                     vertical-alignment: center;
                 }
             }
-
-            Rectangle { vertical-stretch: 1; }
         }
 
         // === Tab 3: System Info (scrollable) ===

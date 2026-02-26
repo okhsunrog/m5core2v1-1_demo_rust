@@ -16,10 +16,10 @@ use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Instant, Timer};
 use esp_backtrace as _;
 use esp_hal::dma::{DmaRxBuf, DmaTxBuf};
-use esp_hal::ram;
 use esp_hal::dma_buffers;
 use esp_hal::gpio::{Level, Output, OutputConfig};
 use esp_hal::i2c::master::{Config as I2cConfig, I2c};
+use esp_hal::ram;
 use esp_hal::spi::Mode as SpiMode;
 use esp_hal::spi::master::{Config as SpiConfig, Spi, SpiDmaBus};
 use esp_hal::time::Rate;
@@ -29,9 +29,9 @@ use lcd_async::models::ILI9342CRgb565;
 use lcd_async::options::{ColorInversion, Orientation, Rotation};
 use lcd_async::{Builder, interface};
 use log::info;
+use slint::PhysicalPosition;
 use slint::platform::software_renderer::Rgb565Pixel;
 use slint::platform::{PointerEventButton, WindowEvent};
-use slint::PhysicalPosition;
 use static_cell::StaticCell;
 
 use m5core2v1_1_esp_hal_demo::pmic::{self, Backlight, set_backlight};
@@ -206,12 +206,12 @@ async fn main(spawner: Spawner) -> ! {
 
                     if let Some(prev) = last_touch_pos {
                         if prev != pos {
-                            let _ = ui.window().dispatch_event(WindowEvent::PointerMoved {
-                                position: pos,
-                            });
+                            ui
+                                .window()
+                                .dispatch_event(WindowEvent::PointerMoved { position: pos });
                         }
                     } else {
-                        let _ = ui.window().dispatch_event(WindowEvent::PointerPressed {
+                        ui.window().dispatch_event(WindowEvent::PointerPressed {
                             position: pos,
                             button: PointerEventButton::Left,
                         });
@@ -220,19 +220,19 @@ async fn main(spawner: Spawner) -> ! {
 
                     ui.set_touch_info(format!("({}, {})", p.x, p.y).into());
                 } else if let Some(pos) = last_touch_pos.take() {
-                    let _ = ui.window().dispatch_event(WindowEvent::PointerReleased {
+                    ui.window().dispatch_event(WindowEvent::PointerReleased {
                         position: pos,
                         button: PointerEventButton::Left,
                     });
-                    let _ = ui.window().dispatch_event(WindowEvent::PointerExited);
+                    ui.window().dispatch_event(WindowEvent::PointerExited);
                     ui.set_touch_info("none".into());
                 }
             } else if let Some(pos) = last_touch_pos.take() {
-                let _ = ui.window().dispatch_event(WindowEvent::PointerReleased {
+                ui.window().dispatch_event(WindowEvent::PointerReleased {
                     position: pos,
                     button: PointerEventButton::Left,
                 });
-                let _ = ui.window().dispatch_event(WindowEvent::PointerExited);
+                ui.window().dispatch_event(WindowEvent::PointerExited);
                 ui.set_touch_info("none".into());
             }
         }
@@ -307,11 +307,11 @@ async fn main(spawner: Spawner) -> ! {
         // --- FPS calculation ---
         fps_frame_count += 1;
         if fps_timer.elapsed() >= Duration::from_secs(1) {
-            let elapsed_ms = fps_timer.elapsed().as_millis();
+            let elapsed_ms = fps_timer.elapsed().as_millis().max(1);
             let fps = (fps_frame_count as u64 * 1000) / elapsed_ms;
             ui.set_fps_text(format!("{}", fps).into());
 
-            let frame_ms = elapsed_ms / fps_frame_count as u64;
+            let frame_ms = elapsed_ms / fps_frame_count.max(1) as u64;
             ui.set_frame_time(format!("{} ms", frame_ms).into());
             ui.set_render_time(format!("{} ms", render_ms).into());
 
