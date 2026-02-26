@@ -24,7 +24,7 @@ use esp_hal::spi::master::{Config as SpiConfig, Spi, SpiDmaBus};
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use esp_radio::ble::controller::BleConnector;
-use ft6336u_dd::{Ft6336uAsync, TouchStatus};
+use ft6336u_dd::Ft6336uAsync;
 use ina3221_dd::{ChannelId, INA3221_I2C_ADDR_GND, Ina3221Async};
 use lcd_async::models::ILI9342CRgb565;
 use lcd_async::options::{ColorInversion, Orientation, Rotation};
@@ -132,6 +132,11 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
     let mut touch = Ft6336uAsync::new(i2c_touch);
     let chip_id = touch.read_chip_id().await.unwrap();
     info!("FT6336U Chip ID: 0x{:02X}", chip_id);
+
+    // Set interrupt trigger mode — INT pin (GPIO39) goes low on touch
+    // G_MODE register (0xA4): 0x00 = polling, 0x01 = trigger
+    // Note: INT pin (GPIO39) has no pull-up on PCB and ESP32 GPIO34-39 lack internal pull-ups,
+    // so interrupt-driven touch is not possible without hardware modification. Using polling.
 
     // --- INA3221 power monitor init ---
     info!("Initializing INA3221...");
@@ -251,32 +256,22 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
             if let Ok(touch_data) = touch.scan().await {
                 if touch_data.touch_count > 0 {
                     let p = &touch_data.points[0];
-                    if p.status != TouchStatus::Release {
-                        let pos = PhysicalPosition::new(p.x as i32, p.y as i32)
-                            .to_logical(ui.window().scale_factor());
+                    let pos = PhysicalPosition::new(p.x as i32, p.y as i32)
+                        .to_logical(ui.window().scale_factor());
 
-                        if let Some(prev) = last_touch_pos {
-                            if prev != pos {
-                                ui.window()
-                                    .dispatch_event(WindowEvent::PointerMoved { position: pos });
-                            }
-                        } else {
-                            ui.window().dispatch_event(WindowEvent::PointerPressed {
-                                position: pos,
-                                button: PointerEventButton::Left,
-                            });
+                    if let Some(prev) = last_touch_pos {
+                        if prev != pos {
+                            ui.window()
+                                .dispatch_event(WindowEvent::PointerMoved { position: pos });
                         }
-                        last_touch_pos = Some(pos);
-
-                        ui.set_touch_info(format!("({}, {})", p.x, p.y).into());
-                    } else if let Some(pos) = last_touch_pos.take() {
-                        ui.window().dispatch_event(WindowEvent::PointerReleased {
+                    } else {
+                        ui.window().dispatch_event(WindowEvent::PointerPressed {
                             position: pos,
                             button: PointerEventButton::Left,
                         });
-                        ui.window().dispatch_event(WindowEvent::PointerExited);
-                        ui.set_touch_info("none".into());
                     }
+                    last_touch_pos = Some(pos);
+                    ui.set_touch_info(format!("({}, {})", p.x, p.y).into());
                 } else if let Some(pos) = last_touch_pos.take() {
                     ui.window().dispatch_event(WindowEvent::PointerReleased {
                         position: pos,
