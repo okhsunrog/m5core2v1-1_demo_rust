@@ -52,12 +52,7 @@ async fn main(spawner: Spawner) -> ! {
 
     esp_println::logger::init_logger_from_env();
 
-    // Note: CpuClock::max() (240MHz) is broken with PSRAM on ESP32 in esp-hal 1.0.0.
-    // PSRAM init calls ROM function esp_rom_spiflash_config_clk() which switches
-    // SOC_CLK_SEL from PLL back to XTAL and leaves PLL in an unstable state.
-    // See: https://github.com/esp-rs/esp-hal/issues/XXXX
-    // Using default clock (80MHz) as workaround - bootloader leaves PLL untouched.
-    let config = esp_hal::Config::default();
+    let config = esp_hal::Config::default().with_cpu_clock(esp_hal::clock::CpuClock::max());
     let peripherals = esp_hal::init(config);
 
     // Use PSRAM for heap (Core2 has 8MB PSRAM, but ESP32 can only map 4MB)
@@ -72,7 +67,9 @@ async fn main(spawner: Spawner) -> ! {
     );
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
-    esp_rtos::start(timg0.timer0);
+    let sw_ints =
+        esp_hal::interrupt::software::SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
+    esp_rtos::start(timg0.timer0, sw_ints.software_interrupt0);
 
     info!("Embassy initialized!");
 
