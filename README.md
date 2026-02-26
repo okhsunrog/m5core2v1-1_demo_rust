@@ -44,7 +44,7 @@ The ESP32 DRAM is split across regions. With BLE enabled, 64 KB is reserved for 
 |--------|------|-------|
 | DRAM (main) | 128 KB | BSS (statics, DMA buffers) + stack (~72 KB) |
 | DRAM2 (reclaimed) | 96 KB | Heap (general allocations, Slint, BLE) |
-| PSRAM | 4 MB | Framebuffers (300 KB: render + transmit) |
+| PSRAM | 4 MB | Framebuffer (150 KB) |
 
 ## Building
 

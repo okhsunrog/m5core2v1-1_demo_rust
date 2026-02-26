@@ -32,7 +32,7 @@ use lcd_async::{Builder, interface};
 use log::info;
 use pcf8563_dd::Pcf8563Async;
 use slint::PhysicalPosition;
-use slint::platform::software_renderer::Rgb565Pixel;
+use slint::platform::software_renderer::Rgb565PixelBE;
 use slint::platform::{PointerEventButton, WindowEvent};
 use static_cell::StaticCell;
 
@@ -230,18 +230,12 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
     ui.set_dma_buf_size(format!("{} KB", DMA_BUF_SIZE / 1024).into());
     ui.set_backlight_value(0.5);
 
-    // Allocate pixel buffers on PSRAM (150KB each — too large for SRAM)
-    // render_buf: Slint renders here (native LE), kept intact for dirty tracking
-    // tx_buf: byte-swapped copy sent to display (BE for ILI9342C)
+    // Allocate pixel buffer on PSRAM (150KB — too large for SRAM)
+    // Rgb565PixelBE renders directly in big-endian byte order for the ILI9342C
     let num_pixels = (WIDTH as usize) * (HEIGHT as usize);
-    let mut render_buf =
+    let mut pixel_buf =
         allocator_api2::vec::Vec::with_capacity_in(num_pixels, esp_alloc::ExternalMemory);
-    render_buf.resize(num_pixels, Rgb565Pixel(0));
-    let mut tx_buf = allocator_api2::vec::Vec::<u8, _>::with_capacity_in(
-        num_pixels * 2,
-        esp_alloc::ExternalMemory,
-    );
-    tx_buf.resize(num_pixels * 2, 0);
+    pixel_buf.resize(num_pixels, Rgb565PixelBE(0));
 
     // Spawn USB PD task on external I2C bus
     spawner.must_spawn(pd::pd_task(i2c1));
@@ -457,20 +451,15 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
             // --- Render ---
             let render_start = Instant::now();
             slint_window.draw_if_needed(|renderer| {
-                renderer.render(&mut render_buf, WIDTH as usize);
+                renderer.render(&mut pixel_buf, WIDTH as usize);
             });
             render_ms_accum += render_start.elapsed().as_millis();
 
-            // Copy render buffer to tx buffer with byte-swap (LE→BE for ILI9342C)
-            // render_buf stays untouched so Slint's dirty tracking works with ReusedBuffer
-            for (pixel, chunk) in render_buf.iter().zip(tx_buf.chunks_exact_mut(2)) {
-                let be = pixel.0.to_be_bytes();
-                chunk[0] = be[0];
-                chunk[1] = be[1];
-            }
-
-            // Send framebuffer to display
-            if let Err(e) = display.show_raw_data(0, 0, WIDTH, HEIGHT, &tx_buf).await {
+            // Send framebuffer directly — Rgb565PixelBE is already in display byte order
+            if let Err(e) = display
+                .show_raw_data(0, 0, WIDTH, HEIGHT, bytemuck::cast_slice(&pixel_buf))
+                .await
+            {
                 log::warn!("Display write failed: {:?}", e);
             }
 
