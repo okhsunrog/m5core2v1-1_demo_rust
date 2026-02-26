@@ -812,8 +812,7 @@ checksum = "0b396d1f76d455557e1218ec8066ae14bba60b4b36ecd55577ba979f5db7ecaa"
 [[package]]
 name = "const-field-offset"
 version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91fcde4ca1211b5a94b573083c472ee19e86b19a441913f66e1cc5c41daf0255"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#071b7b75ae52847dd3f00fd4cd94d8c00d1f854b"
 dependencies = [
  "const-field-offset-macro",
  "field-offset",
@@ -822,8 +821,7 @@ dependencies = [
 [[package]]
 name = "const-field-offset-macro"
 version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5387f5bbc9e9e6c96436ea125afa12614cebf8ac67f49abc08c1e7a891466c90"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#071b7b75ae52847dd3f00fd4cd94d8c00d1f854b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2222,18 +2220,7 @@ dependencies = [
  "log",
  "slotmap",
  "tinyvec",
- "ttf-parser 0.25.1",
-]
-
-[[package]]
-name = "fontdue"
-version = "0.9.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e57e16b3fe8ff4364c0661fdaac543fb38b29ea9bc9c2f45612d90adf931d2b"
-dependencies = [
- "hashbrown 0.15.5",
- "rayon",
- "ttf-parser 0.21.1",
+ "ttf-parser",
 ]
 
 [[package]]
@@ -2566,6 +2553,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "grid"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36119f3a540b086b4e436bb2b588cf98a68863470e0e880f4d0842f112a3183a"
+
+[[package]]
 name = "half"
 version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2613,10 +2606,7 @@ version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9229cfe53dfd69f0609a49f65461bd93001ea1ef889cd5529dd176593f5338a1"
 dependencies = [
- "allocator-api2 0.2.21",
- "equivalent",
  "foldhash 0.1.5",
- "rayon",
 ]
 
 [[package]]
@@ -2691,9 +2681,8 @@ checksum = "48ce8546b993eaf241d69ded33b1be6d205dd9857ec879d9d18bd05d3676e144"
 
 [[package]]
 name = "i-slint-backend-linuxkms"
-version = "1.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b8827952ecfbbf76c8cb5bc3388ca9124c34f2b4fe5dffcfe57800d2a484885"
+version = "1.16.0"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#071b7b75ae52847dd3f00fd4cd94d8c00d1f854b"
 dependencies = [
  "bytemuck",
  "calloop 0.14.4",
@@ -2709,9 +2698,8 @@ dependencies = [
 
 [[package]]
 name = "i-slint-backend-selector"
-version = "1.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce5a7e591a7257096e1f3da1bbb9ad6a140c307d0eee74f008a0b412fdb20dec"
+version = "1.16.0"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#071b7b75ae52847dd3f00fd4cd94d8c00d1f854b"
 dependencies = [
  "cfg-if",
  "i-slint-backend-linuxkms",
@@ -2723,9 +2711,8 @@ dependencies = [
 
 [[package]]
 name = "i-slint-backend-winit"
-version = "1.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbbf4789191740f939c9563b8850379122d7b5c1ceb09f9297b50ad53e408787"
+version = "1.16.0"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#071b7b75ae52847dd3f00fd4cd94d8c00d1f854b"
 dependencies = [
  "block2 0.6.2",
  "bytemuck",
@@ -2764,24 +2751,24 @@ dependencies = [
 
 [[package]]
 name = "i-slint-common"
-version = "1.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7659797fd28d4df3ed275ff95bf730bdf4a88d253f07e1ee8d0032d70138c3a"
+version = "1.16.0"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#071b7b75ae52847dd3f00fd4cd94d8c00d1f854b"
 dependencies = [
  "fontique",
- "ttf-parser 0.25.1",
+ "htmlparser",
+ "pulldown-cmark",
+ "thiserror 2.0.18",
+ "ttf-parser",
 ]
 
 [[package]]
 name = "i-slint-compiler"
-version = "1.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a6f358d0d5389869d67cd6ab6f5acf98fe31827264a696593e9687213cff682"
+version = "1.16.0"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#071b7b75ae52847dd3f00fd4cd94d8c00d1f854b"
 dependencies = [
  "annotate-snippets",
  "by_address",
  "derive_more",
- "fontdue",
  "i-slint-common",
  "image",
  "itertools 0.14.0",
@@ -2795,17 +2782,18 @@ dependencies = [
  "resvg",
  "rowan",
  "rspolib",
+ "skrifa",
  "smol_str 0.3.2",
  "strum",
+ "swash",
  "typed-index-collections",
  "url",
 ]
 
 [[package]]
 name = "i-slint-core"
-version = "1.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a95591ff85f8e2ff11c8d26ea8429768c2b77866e0c7e7fd49348f23ad108b5c"
+version = "1.16.0"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#071b7b75ae52847dd3f00fd4cd94d8c00d1f854b"
 dependencies = [
  "auto_enums",
  "bitflags 2.11.0",
@@ -2815,7 +2803,6 @@ dependencies = [
  "const-field-offset",
  "derive_more",
  "euclid",
- "htmlparser",
  "i-slint-common",
  "i-slint-core-macros",
  "image",
@@ -2829,7 +2816,6 @@ dependencies = [
  "pin-project",
  "pin-weak",
  "portable-atomic",
- "pulldown-cmark",
  "raw-window-handle",
  "resvg",
  "rgb",
@@ -2838,8 +2824,9 @@ dependencies = [
  "skrifa",
  "slab",
  "strum",
+ "swash",
  "sys-locale",
- "thiserror 2.0.18",
+ "taffy",
  "unicode-linebreak",
  "unicode-script",
  "unicode-segmentation",
@@ -2851,9 +2838,8 @@ dependencies = [
 
 [[package]]
 name = "i-slint-core-macros"
-version = "1.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cc5f2f71682787dd5c6299555c0de635009eb269bbc54d6198e0d225b69fae4"
+version = "1.16.0"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#071b7b75ae52847dd3f00fd4cd94d8c00d1f854b"
 dependencies = [
  "quote",
  "serde_json",
@@ -2862,13 +2848,13 @@ dependencies = [
 
 [[package]]
 name = "i-slint-renderer-skia"
-version = "1.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a64546232c0370f291e65fc92a4f4fc777ea78d5f48467873cb968b1de52e9ab"
+version = "1.16.0"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#071b7b75ae52847dd3f00fd4cd94d8c00d1f854b"
 dependencies = [
  "bytemuck",
  "cfg-if",
  "cfg_aliases",
+ "clru",
  "const-field-offset",
  "derive_more",
  "glow",
@@ -2898,21 +2884,20 @@ dependencies = [
 
 [[package]]
 name = "i-slint-renderer-software"
-version = "1.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a59be6c34935c4f8e41aa67a63518d5c59219c8eeb1d07af420bed8334fa31d7"
+version = "1.16.0"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#071b7b75ae52847dd3f00fd4cd94d8c00d1f854b"
 dependencies = [
  "bytemuck",
  "clru",
  "derive_more",
  "euclid",
- "fontdue",
  "i-slint-common",
  "i-slint-core",
  "integer-sqrt",
  "lyon_path",
  "num-traits",
  "skrifa",
+ "swash",
  "zeno",
 ]
 
@@ -3551,6 +3536,7 @@ dependencies = [
  "allocator-api2 0.3.1",
  "axp2101-dd",
  "bt-hci",
+ "bytemuck",
  "critical-section",
  "embassy-embedded-hal",
  "embassy-executor",
@@ -4987,7 +4973,7 @@ dependencies = [
  "core_maths",
  "log",
  "smallvec",
- "ttf-parser 0.25.1",
+ "ttf-parser",
  "unicode-bidi-mirroring",
  "unicode-ccc",
  "unicode-properties",
@@ -5212,6 +5198,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c31071dedf532758ecf3fed987cdb4bd9509f900e026ab684b4ecb81ea49841"
 dependencies = [
  "bytemuck",
+ "core_maths",
  "read-fonts",
 ]
 
@@ -5223,9 +5210,8 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
 name = "slint"
-version = "1.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d25b87d458205e79efb30545cae083aec2ccb1b192c46a55ae6d54403cdacb33"
+version = "1.16.0"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#071b7b75ae52847dd3f00fd4cd94d8c00d1f854b"
 dependencies = [
  "const-field-offset",
  "i-slint-backend-selector",
@@ -5243,9 +5229,8 @@ dependencies = [
 
 [[package]]
 name = "slint-build"
-version = "1.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "064ef470cc8ab046319db94d0727f080fbd05322d07d774eb6de607d97defb8d"
+version = "1.16.0"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#071b7b75ae52847dd3f00fd4cd94d8c00d1f854b"
 dependencies = [
  "derive_more",
  "fontique",
@@ -5256,9 +5241,8 @@ dependencies = [
 
 [[package]]
 name = "slint-macros"
-version = "1.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ecc09bbc42c780d5b7ed7d41f7573dfd67343e11cdac27c07b88a8f933958e6"
+version = "1.16.0"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#071b7b75ae52847dd3f00fd4cd94d8c00d1f854b"
 dependencies = [
  "i-slint-compiler",
  "proc-macro2",
@@ -5447,6 +5431,7 @@ version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47846491253e976bdd07d0f9cc24b7daf24720d11309302ccbbc6e6b6e53550a"
 dependencies = [
+ "core_maths",
  "skrifa",
  "yazi",
  "zeno",
@@ -5495,6 +5480,18 @@ dependencies = [
  "libc",
  "wasm-bindgen",
  "web-sys",
+]
+
+[[package]]
+name = "taffy"
+version = "0.7.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab4f4d046dd956a47a7e1a2947083d7ac3e6aa3cfaaead36173ceaa5ab11878c"
+dependencies = [
+ "arrayvec",
+ "grid",
+ "serde",
+ "slotmap",
 ]
 
 [[package]]
@@ -5779,12 +5776,6 @@ dependencies = [
 
 [[package]]
 name = "ttf-parser"
-version = "0.21.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c591d83f69777866b9126b24c6dd9a18351f177e49d625920d19f989fd31cf8"
-
-[[package]]
-name = "ttf-parser"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2df906b07856748fa3f6e0ad0cbaa047052d4a7dd609e231c4f72cee8c36f31"
@@ -6015,8 +6006,7 @@ checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 [[package]]
 name = "vtable"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "753be81c38dff787d177b5939af1fa16f72f0d0d21a6b7d74ae56e29cd26f2a6"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#071b7b75ae52847dd3f00fd4cd94d8c00d1f854b"
 dependencies = [
  "const-field-offset",
  "portable-atomic",
@@ -6027,8 +6017,7 @@ dependencies = [
 [[package]]
 name = "vtable-macro"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8cfcf6171aa2b0f85718ca5888ca32f6edf61d1849f8e4b3786ad890e5b68f68"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#071b7b75ae52847dd3f00fd4cd94d8c00d1f854b"
 dependencies = [
  "proc-macro2",
  "quote",
