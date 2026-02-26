@@ -13,7 +13,7 @@ use embassy_embedded_hal::shared_bus::asynch::spi::SpiDevice;
 use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::mutex::Mutex;
-use embassy_time::{Duration, Timer};
+use embassy_time::{Duration, Instant, Timer};
 use esp_backtrace as _;
 use esp_hal::dma::{DmaRxBuf, DmaTxBuf};
 use esp_hal::dma_buffers;
@@ -44,6 +44,8 @@ esp_bootloader_esp_idf::esp_app_desc!();
 
 const WIDTH: u16 = 320;
 const HEIGHT: u16 = 240;
+const SPI_FREQ_MHZ: u32 = 20;
+const DMA_BUF_SIZE: usize = 32_000;
 
 #[esp_rtos::main]
 async fn main(spawner: Spawner) -> ! {
@@ -106,10 +108,10 @@ async fn main(spawner: Spawner) -> ! {
     // --- SPI display init ---
     info!("Initializing SPI for display...");
     let spi_config = SpiConfig::default()
-        .with_frequency(Rate::from_mhz(20))
+        .with_frequency(Rate::from_mhz(SPI_FREQ_MHZ))
         .with_mode(SpiMode::_0);
 
-    let (rx_buffer, rx_descriptors, tx_buffer, tx_descriptors) = dma_buffers!(4, 32_000);
+    let (rx_buffer, rx_descriptors, tx_buffer, tx_descriptors) = dma_buffers!(4, DMA_BUF_SIZE);
     let dma_rx_buf = DmaRxBuf::new(rx_descriptors, rx_buffer).unwrap();
     let dma_tx_buf = DmaTxBuf::new(tx_descriptors, tx_buffer).unwrap();
 
@@ -151,6 +153,17 @@ async fn main(spawner: Spawner) -> ! {
     let ui = MainWindow::new().unwrap();
     slint_window.set_size(slint::PhysicalSize::new(WIDTH as u32, HEIGHT as u32));
 
+    // Set static system info
+    ui.set_cpu_freq("240 MHz".into());
+    ui.set_psram_size(format!("{} KB", psram_size / 1024).into());
+    ui.set_display_res(format!("{}x{}", WIDTH, HEIGHT).into());
+    ui.set_spi_freq(format!("{} MHz", SPI_FREQ_MHZ).into());
+    ui.set_i2c_freq("400 kHz".into());
+    ui.set_touch_chip(format!("FT6336U (0x{:02X})", chip_id).into());
+    ui.set_pmic_chip("AXP2101".into());
+    ui.set_dma_buf_size(format!("{} KB", DMA_BUF_SIZE / 1024).into());
+    ui.set_backlight_value(0.5);
+
     // Allocate pixel buffer on PSRAM
     let num_pixels = (WIDTH as usize) * (HEIGHT as usize);
     let mut pixel_buf = alloc::vec![Rgb565Pixel(0); num_pixels];
@@ -161,10 +174,17 @@ async fn main(spawner: Spawner) -> ! {
 
     // Track touch state for Slint event dispatching
     let mut last_touch_pos: Option<slint::LogicalPosition> = None;
-    // PMIC read counter - read every ~1 second (every 60 frames at ~16ms)
-    let mut frame_count: u32 = 0;
+    // PMIC read counter - read every ~1 second
+    let mut pmic_timer = Instant::now();
+    // FPS tracking
+    let mut fps_timer = Instant::now();
+    let mut fps_frame_count: u32 = 0;
+    // Current backlight
+    let mut current_backlight: f32 = 0.5;
 
     loop {
+        let frame_start = Instant::now();
+
         // Update Slint timers and animations
         slint::platform::update_timers_and_animations();
 
@@ -209,10 +229,17 @@ async fn main(spawner: Spawner) -> ! {
             }
         }
 
+        // Handle backlight changes from UI slider
+        let new_bl = ui.get_backlight_value();
+        if (new_bl - current_backlight).abs() > 0.01 {
+            current_backlight = new_bl;
+            let brightness = (current_backlight * 100.0) as u8;
+            let _ = set_backlight_brightness(&mut axp, brightness).await;
+        }
+
         // --- Update PMIC data periodically (~1s) ---
-        frame_count += 1;
-        if frame_count >= 60 {
-            frame_count = 0;
+        if pmic_timer.elapsed() >= Duration::from_secs(1) {
+            pmic_timer = Instant::now();
 
             let battery_mv = axp.get_battery_voltage_mv().await.unwrap_or(0);
             let vbus_mv = axp.get_vbus_voltage_mv().await.unwrap_or(0);
@@ -231,12 +258,24 @@ async fn main(spawner: Spawner) -> ! {
             ui.set_vbus_voltage(format!("{}", vbus_mv).into());
             ui.set_vsys_voltage(format!("{}", vsys_mv).into());
             ui.set_temperature(format!("{:.1}", temp_c).into());
+
+            // Update free heap
+            let free = esp_alloc::HEAP.free();
+            ui.set_free_heap(format!("{} KB", free / 1024).into());
+
+            // Update uptime
+            let up_secs = Instant::now().as_millis() / 1000;
+            let mins = up_secs / 60;
+            let secs = up_secs % 60;
+            ui.set_uptime(format!("{}m {}s", mins, secs).into());
         }
 
         // --- Render ---
+        let render_start = Instant::now();
         slint_window.draw_if_needed(|renderer| {
             renderer.render(&mut pixel_buf, WIDTH as usize);
         });
+        let render_ms = render_start.elapsed().as_millis();
 
         // Swap bytes: Slint renders native (little-endian), ILI9342C expects big-endian RGB565
         for pixel in pixel_buf.iter_mut() {
@@ -257,6 +296,25 @@ async fn main(spawner: Spawner) -> ! {
             pixel.0 = pixel.0.swap_bytes();
         }
 
-        Timer::after(Duration::from_millis(16)).await;
+        // --- FPS calculation ---
+        fps_frame_count += 1;
+        if fps_timer.elapsed() >= Duration::from_secs(1) {
+            let elapsed_ms = fps_timer.elapsed().as_millis();
+            let fps = (fps_frame_count as u64 * 1000) / elapsed_ms;
+            ui.set_fps_text(format!("{}", fps).into());
+
+            let frame_ms = elapsed_ms / fps_frame_count as u64;
+            ui.set_frame_time(format!("{} ms", frame_ms).into());
+            ui.set_render_time(format!("{} ms", render_ms).into());
+
+            fps_frame_count = 0;
+            fps_timer = Instant::now();
+        }
+
+        // Cap at ~60fps
+        let elapsed = frame_start.elapsed();
+        if elapsed < Duration::from_millis(16) {
+            Timer::after(Duration::from_millis(16) - elapsed).await;
+        }
     }
 }

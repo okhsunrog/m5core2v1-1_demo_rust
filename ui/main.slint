@@ -1,3 +1,54 @@
+component StatusRow inherits HorizontalLayout {
+    in property <string> label;
+    in property <string> value;
+    in property <color> value-color: white;
+    spacing: 8px;
+    Text { text: label; color: #aaaaaa; font-size: 13px; width: 80px; }
+    Text { text: value; color: value-color; font-size: 13px; }
+}
+
+component TabButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> active;
+    callback clicked;
+
+    background: active ? #334466 : #1a1a2e;
+    border-radius: 4px;
+    horizontal-stretch: 1;
+    height: 28px;
+
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    Text {
+        text: label;
+        color: active ? #00d4ff : #666688;
+        font-size: 12px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+component ProgressBar inherits Rectangle {
+    in property <float> value: 0.0; // 0.0 to 1.0
+    in property <color> bar-color: #00d4ff;
+
+    height: 12px;
+    background: #222244;
+    border-radius: 6px;
+    clip: true;
+
+    Rectangle {
+        x: 0;
+        y: 0;
+        width: parent.width * value;
+        height: parent.height;
+        background: bar-color;
+        border-radius: 6px;
+    }
+}
+
 export component MainWindow inherits Window {
     in property <string> battery-percent: "?";
     in property <string> battery-voltage: "?";
@@ -5,85 +56,286 @@ export component MainWindow inherits Window {
     in property <string> vsys-voltage: "?";
     in property <string> temperature: "?";
     in property <string> touch-info: "none";
+    in property <string> fps-text: "?";
+    in-out property <int> active-tab: 0;
+    in-out property <int> tap-count: 0;
+    in-out property <float> backlight-value: 0.5;
+
+    // System info properties
+    in property <string> cpu-freq: "?";
+    in property <string> psram-size: "?";
+    in property <string> free-heap: "?";
+    in property <string> uptime: "?";
+    in property <string> chip-id: "?";
+    in property <string> spi-freq: "?";
+    in property <string> i2c-freq: "?";
+    in property <string> display-res: "?";
+    in property <string> render-time: "?";
+    in property <string> frame-time: "?";
+    in property <string> touch-chip: "?";
+    in property <string> pmic-chip: "?";
+    in property <string> dma-buf-size: "?";
 
     background: #1a1a2e;
 
     VerticalLayout {
-        padding: 12px;
-        spacing: 6px;
+        padding: 8px;
+        spacing: 4px;
 
-        Text {
-            text: "M5Stack Core2 v1.1";
-            color: #00d4ff;
-            font-size: 18px;
-            horizontal-alignment: center;
-        }
-
-        Rectangle {
-            height: 1px;
-            background: #333366;
-        }
-
-        // Battery section
+        // Header with FPS
         HorizontalLayout {
-            spacing: 8px;
-            Text { text: "Battery:"; color: #aaaaaa; font-size: 14px; width: 90px; }
-            Text { text: root.battery-percent + "%"; color: #00ff88; font-size: 14px; }
+            Text {
+                text: "M5Stack Core2 v1.1";
+                color: #00d4ff;
+                font-size: 15px;
+                horizontal-stretch: 1;
+            }
+            Text {
+                text: fps-text + " FPS";
+                color: fps-text == "?" ? #666666 : #44ff44;
+                font-size: 13px;
+                vertical-alignment: center;
+            }
         }
 
+        Rectangle { height: 1px; background: #333366; }
+
+        // Tab bar
         HorizontalLayout {
+            spacing: 3px;
+            TabButton {
+                label: "Status";
+                active: active-tab == 0;
+                clicked => { root.active-tab = 0; }
+            }
+            TabButton {
+                label: "Controls";
+                active: active-tab == 1;
+                clicked => { root.active-tab = 1; }
+            }
+            TabButton {
+                label: "Anim";
+                active: active-tab == 2;
+                clicked => { root.active-tab = 2; }
+            }
+            TabButton {
+                label: "System";
+                active: active-tab == 3;
+                clicked => { root.active-tab = 3; }
+            }
+        }
+
+        Rectangle { height: 1px; background: #333366; }
+
+        // === Tab 0: Status ===
+        if active-tab == 0: VerticalLayout {
+            spacing: 4px;
+            vertical-stretch: 1;
+
+            StatusRow { label: "Battery:"; value: root.battery-percent + "%"; value-color: #00ff88; }
+            StatusRow { label: "Bat mV:"; value: root.battery-voltage; }
+            StatusRow { label: "VBUS mV:"; value: root.vbus-voltage; }
+            StatusRow { label: "VSYS mV:"; value: root.vsys-voltage; }
+            StatusRow { label: "Temp:"; value: root.temperature + " C"; }
+
+            Rectangle { height: 1px; background: #222244; }
+
+            StatusRow { label: "Touch:"; value: root.touch-info; value-color: #44ff44; }
+
+            Rectangle { vertical-stretch: 1; }
+        }
+
+        // === Tab 1: Controls ===
+        if active-tab == 1: VerticalLayout {
             spacing: 8px;
-            Text { text: "Bat mV:"; color: #aaaaaa; font-size: 14px; width: 90px; }
-            Text { text: root.battery-voltage; color: white; font-size: 14px; }
-        }
+            vertical-stretch: 1;
 
-        HorizontalLayout {
-            spacing: 8px;
-            Text { text: "VBUS mV:"; color: #aaaaaa; font-size: 14px; width: 90px; }
-            Text { text: root.vbus-voltage; color: white; font-size: 14px; }
-        }
+            // Backlight slider
+            Text { text: "Backlight"; color: #aaaaaa; font-size: 13px; }
 
-        HorizontalLayout {
-            spacing: 8px;
-            Text { text: "VSYS mV:"; color: #aaaaaa; font-size: 14px; width: 90px; }
-            Text { text: root.vsys-voltage; color: white; font-size: 14px; }
-        }
-
-        HorizontalLayout {
-            spacing: 8px;
-            Text { text: "Temp:"; color: #aaaaaa; font-size: 14px; width: 90px; }
-            Text { text: root.temperature + " C"; color: white; font-size: 14px; }
-        }
-
-        Rectangle {
-            height: 1px;
-            background: #333366;
-        }
-
-        HorizontalLayout {
-            spacing: 8px;
-            Text { text: "Touch:"; color: #aaaaaa; font-size: 14px; width: 90px; }
-            Text { text: root.touch-info; color: #44ff44; font-size: 14px; }
-        }
-
-        Rectangle { vertical-stretch: 1; }
-
-        // Touch area indicator
-        ta := TouchArea {
             Rectangle {
-                background: ta.pressed ? #334466 : #222244;
+                height: 30px;
+                background: #222244;
+                border-radius: 6px;
+
+                slider-area := TouchArea {
+                    moved => {
+                        root.backlight-value = Math.clamp(self.mouse-x / self.width, 0.0, 1.0);
+                    }
+                    clicked => {
+                        root.backlight-value = Math.clamp(self.mouse-x / self.width, 0.0, 1.0);
+                    }
+                }
+
+                // Track fill
+                Rectangle {
+                    x: 0;
+                    y: (parent.height - self.height) / 2;
+                    width: parent.width * root.backlight-value;
+                    height: 8px;
+                    background: #00d4ff;
+                    border-radius: 4px;
+                }
+
+                // Thumb
+                Rectangle {
+                    x: (parent.width - self.width) * root.backlight-value;
+                    y: (parent.height - self.height) / 2;
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 10px;
+                    background: slider-area.pressed ? #ffffff : #cccccc;
+                }
+            }
+
+            Text {
+                text: Math.round(root.backlight-value * 100) + "%";
+                color: white;
+                font-size: 13px;
+                horizontal-alignment: center;
+            }
+
+            Rectangle { height: 1px; background: #222244; }
+
+            // Tap counter
+            Text { text: "Tap Counter: " + root.tap-count; color: #aaaaaa; font-size: 13px; }
+
+            HorizontalLayout {
+                spacing: 8px;
+
+                tap-btn := TouchArea {
+                    horizontal-stretch: 1;
+                    clicked => { root.tap-count += 1; }
+                    Rectangle {
+                        background: tap-btn.pressed ? #445566 : #2a2a4e;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: #444488;
+                        height: 40px;
+                        Text {
+                            text: "Tap!";
+                            color: tap-btn.pressed ? #00ff88 : #888888;
+                            font-size: 15px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            Rectangle { vertical-stretch: 1; }
+        }
+
+        // === Tab 2: Animations ===
+        if active-tab == 2: VerticalLayout {
+            spacing: 8px;
+            vertical-stretch: 1;
+
+            Text { text: "Bouncing Ball"; color: #aaaaaa; font-size: 13px; }
+
+            Rectangle {
+                height: 30px;
+                background: transparent;
+
+                ball := Rectangle {
+                    property <float> t: Math.mod(animation-tick() / 1ms / 2000, 1.0);
+                    property <float> ease-t: 0.5 - 0.5 * Math.cos(t * 3.14159 * 2 * 1rad);
+
+                    x: ease-t * (parent.width - self.width);
+                    width: 30px;
+                    height: 30px;
+                    border-radius: 15px;
+                    background: @linear-gradient(135deg, #00d4ff, #ff44aa);
+                }
+            }
+
+            Text { text: "Progress Bars"; color: #aaaaaa; font-size: 13px; }
+
+            ProgressBar {
+                property <float> t: Math.mod(animation-tick() / 1ms / 3000, 1.0);
+                value: 0.5 + 0.5 * Math.sin(t * 3.14159 * 2 * 1rad);
+                bar-color: #00d4ff;
+            }
+            ProgressBar {
+                property <float> t: Math.mod(animation-tick() / 1ms / 2000, 1.0);
+                value: 0.5 + 0.5 * Math.sin((t * 3.14159 * 2 + 1.0) * 1rad);
+                bar-color: #ff44aa;
+            }
+            ProgressBar {
+                property <float> t: Math.mod(animation-tick() / 1ms / 4000, 1.0);
+                value: 0.5 + 0.5 * Math.sin((t * 3.14159 * 2 + 2.0) * 1rad);
+                bar-color: #44ff88;
+            }
+
+            Rectangle { height: 1px; background: #222244; }
+
+            // Color cycling rectangle
+            Rectangle {
+                height: 40px;
                 border-radius: 8px;
-                border-width: 1px;
-                border-color: #444488;
-                height: 50px;
+                property <float> t: Math.mod(animation-tick() / 1ms / 5000, 1.0);
+                background: @linear-gradient(90deg + (t * 360deg),
+                    #ff0044, #ff8800, #ffff00, #00ff88, #00d4ff, #8844ff, #ff0044);
 
                 Text {
-                    text: ta.pressed ? "Pressed!" : "Touch me";
-                    color: ta.pressed ? #00ff88 : #888888;
+                    text: "Rainbow";
+                    color: #000000;
                     font-size: 16px;
+                    font-weight: 700;
                     horizontal-alignment: center;
                     vertical-alignment: center;
                 }
+            }
+
+            Rectangle { vertical-stretch: 1; }
+        }
+
+        // === Tab 3: System Info (scrollable) ===
+        if active-tab == 3: Flickable {
+            vertical-stretch: 1;
+
+            VerticalLayout {
+                spacing: 4px;
+                padding-top: 4px;
+                padding-bottom: 8px;
+
+                Text { text: "Hardware"; color: #00d4ff; font-size: 14px; }
+                Rectangle { height: 1px; background: #222244; }
+
+                StatusRow { label: "CPU:"; value: root.cpu-freq; }
+                StatusRow { label: "PSRAM:"; value: root.psram-size; }
+                StatusRow { label: "Free heap:"; value: root.free-heap; }
+                StatusRow { label: "PMIC:"; value: root.pmic-chip; }
+                StatusRow { label: "Touch IC:"; value: root.touch-chip; }
+
+                Rectangle { height: 8px; }
+                Text { text: "Display"; color: #00d4ff; font-size: 14px; }
+                Rectangle { height: 1px; background: #222244; }
+
+                StatusRow { label: "Resolution:"; value: root.display-res; }
+                StatusRow { label: "SPI freq:"; value: root.spi-freq; }
+                StatusRow { label: "DMA buf:"; value: root.dma-buf-size; }
+
+                Rectangle { height: 8px; }
+                Text { text: "Performance"; color: #00d4ff; font-size: 14px; }
+                Rectangle { height: 1px; background: #222244; }
+
+                StatusRow { label: "Frame:"; value: root.frame-time; value-color: #44ff44; }
+                StatusRow { label: "Render:"; value: root.render-time; value-color: #44ff44; }
+                StatusRow { label: "FPS:"; value: root.fps-text; value-color: #44ff44; }
+
+                Rectangle { height: 8px; }
+                Text { text: "Communication"; color: #00d4ff; font-size: 14px; }
+                Rectangle { height: 1px; background: #222244; }
+
+                StatusRow { label: "I2C freq:"; value: root.i2c-freq; }
+                StatusRow { label: "Chip ID:"; value: root.chip-id; }
+
+                Rectangle { height: 8px; }
+                Text { text: "Runtime"; color: #00d4ff; font-size: 14px; }
+                Rectangle { height: 1px; background: #222244; }
+
+                StatusRow { label: "Uptime:"; value: root.uptime; }
             }
         }
     }
