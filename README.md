@@ -79,7 +79,6 @@ src/
   ble.rs             — BLE GATT server (trouble-host)
   pmic.rs            — AXP2101 PMIC initialization and helpers
   slint_platform.rs  — Slint platform backend for ESP32
-  display.rs         — Display utilities
 ui/
   main.slint         — Slint UI definition (tabs, widgets, animations)
 scripts/
