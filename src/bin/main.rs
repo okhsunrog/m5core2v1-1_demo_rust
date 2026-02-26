@@ -297,7 +297,10 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
                 let _ = axp
                     .set_ldo_enable(axp2101_dd::LdoId::Bldo2, current_ext5v)
                     .await;
-                info!("External 5V output: {}", if current_ext5v { "ON" } else { "OFF" });
+                info!(
+                    "External 5V output: {}",
+                    if current_ext5v { "ON" } else { "OFF" }
+                );
             }
 
             // --- Update PMIC data periodically (~1s) ---
@@ -382,10 +385,10 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
                 }
 
                 // Update free heap stats
-                let free_sram = esp_alloc::HEAP
-                    .free_caps(esp_alloc::MemoryCapability::Internal.into());
-                let free_psram = esp_alloc::HEAP
-                    .free_caps(esp_alloc::MemoryCapability::External.into());
+                let free_sram =
+                    esp_alloc::HEAP.free_caps(esp_alloc::MemoryCapability::Internal.into());
+                let free_psram =
+                    esp_alloc::HEAP.free_caps(esp_alloc::MemoryCapability::External.into());
                 ui.set_free_sram(format!("{} KB", free_sram / 1024).into());
                 ui.set_free_psram(format!("{} KB", free_psram / 1024).into());
 
