@@ -180,15 +180,15 @@ where
 /// we effectively control the current through the backlight LEDs, which changes brightness.
 ///
 /// - BLDO1 voltage range: 500mV to 3500mV (0.5V to 3.5V)
-/// - Practical backlight range: ~2500mV to 3300mV
-///   - Below ~2500mV: backlight LED driver doesn't turn on
+/// - Practical backlight range: 2588mV to 3300mV
+///   - Below 2588mV: backlight LED driver doesn't turn on
 ///   - At 3300mV: maximum brightness
 ///
 /// # Brightness mapping
 ///
 /// This function maps a 0-100 percent brightness value to a voltage:
 /// - percent = 0: BLDO1 is disabled (backlight completely off)
-/// - percent = 1-100: Maps to 2500mV to 3300mV
+/// - percent = 1-100: Maps to 2588mV to 3300mV
 ///
 /// Values above 100 are clamped to 100.
 ///
@@ -225,15 +225,15 @@ where
         axp.set_ldo_enable(LdoId::Bldo1, false).await?;
         info!("Backlight disabled");
     } else {
-        // Map percent 1-100 to voltage 2500-3300mV
-        // Below ~2500mV the backlight LED driver doesn't turn on.
-        // Formula: voltage = 2500 + (percent - 1) * (3300 - 2500) / 99
-        //        = 2500 + (percent - 1) * 800 / 99
+        // Map percent 1-100 to voltage 2588-3300mV
+        // Below ~2588mV the backlight LED driver doesn't turn on.
+        // Formula: voltage = 2588 + (percent - 1) * (3300 - 2588) / 99
+        //        = 2588 + (percent - 1) * 712 / 99
         //
-        // At percent=1:   voltage = 2500mV (minimum visible brightness)
-        // At percent=50:  voltage ≈ 2896mV
+        // At percent=1:   voltage = 2588mV (minimum visible brightness)
+        // At percent=50:  voltage ≈ 2940mV
         // At percent=100: voltage = 3300mV (maximum)
-        let voltage_mv = 2500 + ((percent as u32 - 1) * 800 / 99);
+        let voltage_mv = 2588 + ((percent as u32 - 1) * 712 / 99);
 
         // Set BLDO1 voltage (controls backlight brightness)
         axp.set_ldo_voltage_mv(LdoId::Bldo1, voltage_mv as u16)
