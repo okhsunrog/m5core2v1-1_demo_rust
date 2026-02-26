@@ -63,6 +63,11 @@ esp-radio = { git = "https://github.com/esp-rs/esp-hal", rev = "04c4243c", featu
 trouble-host = { version = "0.6.0", features = ["derive"] }
 bt-hci = "0.8.0"
 embassy-futures = "0.1"
+# USB PD
+fusb302b = { path = "../fusb302b", features = ["log"] }
+usbpd = { git = "https://github.com/elagil/usbpd.git", branch = "main", features = ["log"] }
+usbpd-traits = { git = "https://github.com/elagil/usbpd.git", branch = "main" }
+uom = { version = "0.36", default-features = false, features = ["f32", "si"] }
 
 
 [profile.dev]

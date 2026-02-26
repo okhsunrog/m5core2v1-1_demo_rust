@@ -37,8 +37,10 @@ use slint::platform::{PointerEventButton, WindowEvent};
 use static_cell::StaticCell;
 
 use m5core2v1_1_esp_hal_demo::ble;
+use m5core2v1_1_esp_hal_demo::pd;
 use m5core2v1_1_esp_hal_demo::pmic::{self, Backlight, set_backlight};
 use m5core2v1_1_esp_hal_demo::slint_platform::EspPlatform;
+use usbpd::protocol_layer::message::data::source_capabilities::{Augmented, PowerDataObject};
 
 extern crate alloc;
 
@@ -106,6 +108,14 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
     let i2c_touch = I2cDevice::new(i2c_bus);
     let i2c_ina = I2cDevice::new(i2c_bus);
     let i2c_rtc = I2cDevice::new(i2c_bus);
+
+    // --- External I2C bus (I2C1) for FUSB302B ---
+    let i2c1_config = I2cConfig::default().with_frequency(Rate::from_khz(100));
+    let i2c1 = I2c::new(peripherals.I2C1, i2c1_config)
+        .unwrap()
+        .with_sda(peripherals.GPIO32)
+        .with_scl(peripherals.GPIO33)
+        .into_async();
 
     // --- PMIC init ---
     info!("Initializing PMIC...");
@@ -226,7 +236,8 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
         allocator_api2::vec::Vec::with_capacity_in(num_pixels, esp_alloc::ExternalMemory);
     pixel_buf.resize(num_pixels, Rgb565Pixel(0));
 
-    let _ = spawner;
+    // Spawn USB PD task on external I2C bus
+    spawner.must_spawn(pd::pd_task(i2c1));
 
     info!("Starting Slint main loop...");
 
@@ -245,6 +256,8 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
         let mut current_backlight: f32 = 0.5;
         // External 5V output state
         let mut current_ext5v: bool = false;
+        // PD init status tracked
+        let mut pd_init_checked: bool = false;
 
         loop {
             let frame_start = Instant::now();
@@ -381,6 +394,40 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
                     }
                 }
 
+                // Check PD init status
+                if !pd_init_checked {
+                    if let Ok(ok) = pd::INIT_OK_CHANNEL.try_receive() {
+                        pd_init_checked = true;
+                        if ok {
+                            ui.set_pd_status("Waiting...".into());
+                        } else {
+                            ui.set_pd_status("No chip".into());
+                        }
+                    }
+                }
+
+                // Check for USB PD source capabilities
+                if let Ok(caps) = pd::CAPS_CHANNEL.try_receive() {
+                    ui.set_pd_status("Connected".into());
+                    let pdos = caps.pdos();
+                    let pdo_setters: [fn(&MainWindow, slint::SharedString); 7] = [
+                        MainWindow::set_pd_pdo1,
+                        MainWindow::set_pd_pdo2,
+                        MainWindow::set_pd_pdo3,
+                        MainWindow::set_pd_pdo4,
+                        MainWindow::set_pd_pdo5,
+                        MainWindow::set_pd_pdo6,
+                        MainWindow::set_pd_pdo7,
+                    ];
+                    for (i, setter) in pdo_setters.iter().enumerate() {
+                        if i < pdos.len() {
+                            setter(&ui, format_pdo(&pdos[i]).into());
+                        } else {
+                            setter(&ui, "".into());
+                        }
+                    }
+                }
+
                 // Update free heap stats
                 let free_sram = esp_alloc::HEAP
                     .free_caps(esp_alloc::MemoryCapability::Internal.into());
@@ -447,4 +494,54 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
 
     embassy_futures::join::join(ble_future, app_future).await;
     unreachable!()
+}
+
+fn format_pdo(pdo: &PowerDataObject) -> alloc::string::String {
+    match pdo {
+        PowerDataObject::FixedSupply(f) => {
+            format!(
+                "FIXED {}mV {}mA",
+                f.voltage()
+                    .get::<uom::si::electric_potential::millivolt>(),
+                f.max_current()
+                    .get::<uom::si::electric_current::milliampere>()
+            )
+        }
+        PowerDataObject::VariableSupply(v) => {
+            format!(
+                "VAR {}-{}mV {}mA",
+                v.min_voltage()
+                    .get::<uom::si::electric_potential::millivolt>(),
+                v.max_voltage()
+                    .get::<uom::si::electric_potential::millivolt>(),
+                v.max_current()
+                    .get::<uom::si::electric_current::milliampere>()
+            )
+        }
+        PowerDataObject::Battery(b) => {
+            format!(
+                "BATT {}-{}mV {}mW",
+                b.min_voltage()
+                    .get::<uom::si::electric_potential::millivolt>(),
+                b.max_voltage()
+                    .get::<uom::si::electric_potential::millivolt>(),
+                b.max_power().get::<uom::si::power::milliwatt>()
+            )
+        }
+        PowerDataObject::Augmented(a) => match a {
+            Augmented::Spr(pps) => {
+                format!(
+                    "PPS {}-{}mV {}mA",
+                    pps.min_voltage()
+                        .get::<uom::si::electric_potential::millivolt>(),
+                    pps.max_voltage()
+                        .get::<uom::si::electric_potential::millivolt>(),
+                    pps.max_current()
+                        .get::<uom::si::electric_current::milliampere>()
+                )
+            }
+            _ => format!("EPR PDO"),
+        },
+        _ => format!("Unknown PDO"),
+    }
 }

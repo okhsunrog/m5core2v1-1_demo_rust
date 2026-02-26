@@ -2297,9 +2297,9 @@ dependencies = [
 
 [[package]]
 name = "ft6336u-dd"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b06c95a4f8e90eeeabcddad682253b40954fb607175013872a1f67ba66e8f13"
+checksum = "4d662e19fe56154525d654481d5597fc8bc78f535022a441877a8ae371a539a6"
 dependencies = [
  "bisync",
  "device-driver",
@@ -2323,6 +2323,18 @@ name = "funty"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
+
+[[package]]
+name = "fusb302b"
+version = "0.0.1"
+dependencies = [
+ "device-driver",
+ "embassy-time",
+ "embedded-hal-async",
+ "log",
+ "thiserror 2.0.18",
+ "usbpd-traits",
+]
 
 [[package]]
 name = "futures"
@@ -3347,9 +3359,9 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "lcd-async"
-version = "0.1.2"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bece94f4add612b896e750c800f04a703020491236a31fe81f9f7e2afb6ccc21"
+checksum = "359805d2afdff45f3abad226ae27a61ee980309562d14084842c542af29b422a"
 dependencies = [
  "embedded-graphics",
  "embedded-graphics-core",
@@ -3568,6 +3580,7 @@ dependencies = [
  "esp-radio",
  "esp-rtos",
  "ft6336u-dd",
+ "fusb302b",
  "heapless 0.8.0",
  "ina3221-dd",
  "lcd-async",
@@ -3577,6 +3590,9 @@ dependencies = [
  "slint-build",
  "static_cell",
  "trouble-host",
+ "uom",
+ "usbpd",
+ "usbpd-traits",
 ]
 
 [[package]]
@@ -4501,6 +4517,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "proc-bitfield"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb5041a3f8b230c2078ab917516d352f40625245d4c953472eacbe075051c4b7"
+dependencies = [
+ "proc-bitfield-macros",
+ "static_assertions",
+]
+
+[[package]]
+name = "proc-bitfield-macros"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b34b74711e53c2ff9c879e7a22c6c8dbac847ef2b11c2d69296a890e12a243a"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "proc-macro-crate"
 version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5374,6 +5411,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
 name = "static_cell"
 version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5928,6 +5971,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6d49784317cd0d1ee7ec5c716dd598ec5b4483ea832a2dced265471cc0f690ae"
 
 [[package]]
+name = "uom"
+version = "0.36.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ffd36e5350a65d112584053ee91843955826bf9e56ec0d1351214e01f6d7cd9c"
+dependencies = [
+ "num-rational",
+ "num-traits",
+ "typenum",
+]
+
+[[package]]
 name = "url"
 version = "2.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5938,6 +5992,26 @@ dependencies = [
  "percent-encoding",
  "serde",
 ]
+
+[[package]]
+name = "usbpd"
+version = "2.0.0"
+source = "git+https://github.com/elagil/usbpd.git?branch=main#b4dadf6071a9c158a14300859bbfa574ff4f6a6e"
+dependencies = [
+ "byteorder",
+ "embassy-futures",
+ "heapless 0.9.2",
+ "log",
+ "proc-bitfield",
+ "thiserror 2.0.18",
+ "uom",
+ "usbpd-traits",
+]
+
+[[package]]
+name = "usbpd-traits"
+version = "2.0.0"
+source = "git+https://github.com/elagil/usbpd.git?branch=main#b4dadf6071a9c158a14300859bbfa574ff4f6a6e"
 
 [[package]]
 name = "usvg"

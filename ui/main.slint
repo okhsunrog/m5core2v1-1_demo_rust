@@ -39,25 +39,6 @@ component TabButton inherits Rectangle {
     }
 }
 
-component ProgressBar inherits Rectangle {
-    in property <float> value: 0.0; // 0.0 to 1.0
-    in property <color> bar-color: #00d4ff;
-
-    height: 12px;
-    background: #222244;
-    border-radius: 6px;
-    clip: true;
-
-    Rectangle {
-        x: 0;
-        y: 0;
-        width: parent.width * value;
-        height: parent.height;
-        background: bar-color;
-        border-radius: 6px;
-    }
-}
-
 export component MainWindow inherits Window {
     in property <string> battery-percent: "?";
     in property <string> battery-voltage: "?";
@@ -71,6 +52,16 @@ export component MainWindow inherits Window {
     in-out property <int> tap-count: 0;
     in-out property <float> backlight-value: 0.5;
     in-out property <bool> ext5v-enabled: false;
+
+    // USB PD properties
+    in property <string> pd-status: "No chip";
+    in property <string> pd-pdo1: "";
+    in property <string> pd-pdo2: "";
+    in property <string> pd-pdo3: "";
+    in property <string> pd-pdo4: "";
+    in property <string> pd-pdo5: "";
+    in property <string> pd-pdo6: "";
+    in property <string> pd-pdo7: "";
 
     // INA3221 properties
     in property <string> ina-ch1-voltage: "?";
@@ -140,7 +131,7 @@ export component MainWindow inherits Window {
                 clicked => { root.active-tab = 1; }
             }
             TabButton {
-                label: "Anim";
+                label: "USB PD";
                 active: active-tab == 2;
                 clicked => { root.active-tab = 2; }
             }
@@ -271,88 +262,27 @@ export component MainWindow inherits Window {
             Rectangle { vertical-stretch: 1; }
         }
 
-        // === Tab 2: Animations ===
+        // === Tab 2: USB PD ===
         if active-tab == 2: VerticalLayout {
             spacing: 4px;
             vertical-stretch: 1;
 
-            Text { text: "Bouncing Ball"; color: #aaaaaa; font-size: 12px; }
-
-            Rectangle {
-                height: 24px;
-                background: transparent;
-
-                ball := Rectangle {
-                    property <float> t: Math.mod(animation-tick() / 1ms / 2000, 1.0);
-                    property <float> ease-t: 0.5 - 0.5 * Math.cos(t * 3.14159 * 2 * 1rad);
-
-                    x: ease-t * (parent.width - self.width);
-                    width: 24px;
-                    height: 24px;
-                    border-radius: 12px;
-                    background: #00d4ff;
-                }
-            }
-
-            Text { text: "Progress Bars"; color: #aaaaaa; font-size: 12px; }
-
-            ProgressBar {
-                property <float> t: Math.mod(animation-tick() / 1ms / 3000, 1.0);
-                value: 0.5 + 0.5 * Math.sin(t * 3.14159 * 2 * 1rad);
-                bar-color: #00d4ff;
-            }
-            ProgressBar {
-                property <float> t: Math.mod(animation-tick() / 1ms / 2000, 1.0);
-                value: 0.5 + 0.5 * Math.sin((t * 3.14159 * 2 + 1.0) * 1rad);
-                bar-color: #ff44aa;
-            }
-            ProgressBar {
-                property <float> t: Math.mod(animation-tick() / 1ms / 4000, 1.0);
-                value: 0.5 + 0.5 * Math.sin((t * 3.14159 * 2 + 2.0) * 1rad);
-                bar-color: #44ff88;
-            }
-
+            Text { text: "USB PD Source Capabilities"; color: #00d4ff; font-size: 13px; }
             Rectangle { height: 1px; background: #222244; }
 
-            // Color cycling rectangle — solid bands scrolling left (avoids gradient renderer artifacts)
-            Rectangle {
-                vertical-stretch: 1;
-                min-height: 4px;
-                clip: true;
+            StatusRow { label: "Status:"; value: root.pd-status; value-color: root.pd-status == "Connected" ? #00ff88 : #ffaa44; }
 
-                property <float> t: Math.mod(animation-tick() / 1ms / 3000, 1.0);
+            Rectangle { height: 4px; }
 
-                // Double-wide container with solid color bands, scrolling left
-                Rectangle {
-                    x: -t * parent.width;
-                    width: parent.width * 2;
-                    height: parent.height;
+            if root.pd-pdo1 != "": CompactRow { label: "PDO 1:"; value: root.pd-pdo1; value-color: #00d4ff; }
+            if root.pd-pdo2 != "": CompactRow { label: "PDO 2:"; value: root.pd-pdo2; value-color: #00d4ff; }
+            if root.pd-pdo3 != "": CompactRow { label: "PDO 3:"; value: root.pd-pdo3; value-color: #00d4ff; }
+            if root.pd-pdo4 != "": CompactRow { label: "PDO 4:"; value: root.pd-pdo4; value-color: #00d4ff; }
+            if root.pd-pdo5 != "": CompactRow { label: "PDO 5:"; value: root.pd-pdo5; value-color: #00d4ff; }
+            if root.pd-pdo6 != "": CompactRow { label: "PDO 6:"; value: root.pd-pdo6; value-color: #00d4ff; }
+            if root.pd-pdo7 != "": CompactRow { label: "PDO 7:"; value: root.pd-pdo7; value-color: #00d4ff; }
 
-                    HorizontalLayout {
-                        Rectangle { background: #ff0044; horizontal-stretch: 1; }
-                        Rectangle { background: #ff8800; horizontal-stretch: 1; }
-                        Rectangle { background: #ffff00; horizontal-stretch: 1; }
-                        Rectangle { background: #00ff88; horizontal-stretch: 1; }
-                        Rectangle { background: #00d4ff; horizontal-stretch: 1; }
-                        Rectangle { background: #8844ff; horizontal-stretch: 1; }
-                        Rectangle { background: #ff0044; horizontal-stretch: 1; }
-                        Rectangle { background: #ff8800; horizontal-stretch: 1; }
-                        Rectangle { background: #ffff00; horizontal-stretch: 1; }
-                        Rectangle { background: #00ff88; horizontal-stretch: 1; }
-                        Rectangle { background: #00d4ff; horizontal-stretch: 1; }
-                        Rectangle { background: #8844ff; horizontal-stretch: 1; }
-                    }
-                }
-
-                Text {
-                    text: "Rainbow";
-                    color: #000000;
-                    font-size: 16px;
-                    font-weight: 700;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
-                }
-            }
+            Rectangle { vertical-stretch: 1; }
         }
 
         // === Tab 3: System Info (scrollable) ===
