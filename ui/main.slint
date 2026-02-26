@@ -7,6 +7,15 @@ component StatusRow inherits HorizontalLayout {
     Text { text: value; color: value-color; font-size: 13px; }
 }
 
+component CompactRow inherits HorizontalLayout {
+    in property <string> label;
+    in property <string> value;
+    in property <color> value-color: white;
+    spacing: 4px;
+    Text { text: label; color: #aaaaaa; font-size: 11px; width: 50px; }
+    Text { text: value; color: value-color; font-size: 11px; }
+}
+
 component TabButton inherits Rectangle {
     in property <string> label;
     in property <bool> active;
@@ -57,14 +66,24 @@ export component MainWindow inherits Window {
     in property <string> temperature: "?";
     in property <string> touch-info: "none";
     in property <string> fps-text: "?";
+    in property <string> clock-text: "?";
     in-out property <int> active-tab: 0;
     in-out property <int> tap-count: 0;
     in-out property <float> backlight-value: 0.5;
 
+    // INA3221 properties
+    in property <string> ina-ch1-voltage: "?";
+    in property <string> ina-ch1-current: "?";
+    in property <string> ina-ch2-voltage: "?";
+    in property <string> ina-ch2-current: "?";
+    in property <string> ina-ch3-voltage: "?";
+    in property <string> ina-ch3-current: "?";
+
     // System info properties
     in property <string> cpu-freq: "?";
     in property <string> psram-size: "?";
-    in property <string> free-heap: "?";
+    in property <string> free-sram: "?";
+    in property <string> free-psram: "?";
     in property <string> uptime: "?";
     in property <string> chip-id: "?";
     in property <string> spi-freq: "?";
@@ -82,7 +101,7 @@ export component MainWindow inherits Window {
         padding: 8px;
         spacing: 4px;
 
-        // Header with FPS
+        // Header with clock and FPS
         HorizontalLayout {
             Text {
                 text: "M5Stack Core2 v1.1";
@@ -91,7 +110,13 @@ export component MainWindow inherits Window {
                 horizontal-stretch: 1;
             }
             Text {
-                text: fps-text + " FPS";
+                text: clock-text;
+                color: clock-text == "?" ? #666666 : #ffffff;
+                font-size: 13px;
+                vertical-alignment: center;
+            }
+            Text {
+                text: " " + fps-text + " FPS";
                 color: fps-text == "?" ? #666666 : #44ff44;
                 font-size: 13px;
                 vertical-alignment: center;
@@ -127,22 +152,41 @@ export component MainWindow inherits Window {
 
         Rectangle { height: 1px; background: #333366; }
 
-        // === Tab 0: Status ===
-        if active-tab == 0: VerticalLayout {
-            spacing: 4px;
+        // === Tab 0: Status (two columns) ===
+        if active-tab == 0: HorizontalLayout {
+            spacing: 8px;
             vertical-stretch: 1;
 
-            StatusRow { label: "Battery:"; value: root.battery-percent + "%"; value-color: #00ff88; }
-            StatusRow { label: "Bat mV:"; value: root.battery-voltage; }
-            StatusRow { label: "VBUS mV:"; value: root.vbus-voltage; }
-            StatusRow { label: "VSYS mV:"; value: root.vsys-voltage; }
-            StatusRow { label: "Temp:"; value: root.temperature + " C"; }
+            // Left column — PMIC
+            VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: 3px;
+                Text { text: "PMIC"; color: #00d4ff; font-size: 12px; }
+                CompactRow { label: "Bat:"; value: root.battery-percent + "%"; value-color: #00ff88; }
+                CompactRow { label: "Bat mV:"; value: root.battery-voltage; }
+                CompactRow { label: "VBUS:"; value: root.vbus-voltage; }
+                CompactRow { label: "VSYS:"; value: root.vsys-voltage; }
+                CompactRow { label: "Temp:"; value: root.temperature + " C"; }
+                Rectangle { height: 1px; background: #222244; }
+                CompactRow { label: "Touch:"; value: root.touch-info; value-color: #44ff44; }
+                Rectangle { vertical-stretch: 1; }
+            }
 
-            Rectangle { height: 1px; background: #222244; }
+            Rectangle { width: 1px; background: #333366; }
 
-            StatusRow { label: "Touch:"; value: root.touch-info; value-color: #44ff44; }
-
-            Rectangle { vertical-stretch: 1; }
+            // Right column — INA3221
+            VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: 3px;
+                Text { text: "INA3221"; color: #00d4ff; font-size: 12px; }
+                CompactRow { label: "Bat V:"; value: root.ina-ch1-voltage; }
+                CompactRow { label: "Bat I:"; value: root.ina-ch1-current; value-color: #ffaa44; }
+                CompactRow { label: "Bus V:"; value: root.ina-ch2-voltage; }
+                CompactRow { label: "Bus I:"; value: root.ina-ch2-current; value-color: #ffaa44; }
+                CompactRow { label: "AXP V:"; value: root.ina-ch3-voltage; }
+                CompactRow { label: "AXP I:"; value: root.ina-ch3-current; value-color: #ffaa44; }
+                Rectangle { vertical-stretch: 1; }
+            }
         }
 
         // === Tab 1: Controls ===
@@ -324,9 +368,11 @@ export component MainWindow inherits Window {
 
                 StatusRow { label: "CPU:"; value: root.cpu-freq; }
                 StatusRow { label: "PSRAM:"; value: root.psram-size; }
-                StatusRow { label: "Free heap:"; value: root.free-heap; }
+                StatusRow { label: "SRAM free:"; value: root.free-sram; }
+                StatusRow { label: "PSRAM free:"; value: root.free-psram; }
                 StatusRow { label: "PMIC:"; value: root.pmic-chip; }
                 StatusRow { label: "Touch IC:"; value: root.touch-chip; }
+                StatusRow { label: "RTC:"; value: "BM8563"; }
 
                 Rectangle { height: 8px; }
                 Text { text: "Display"; color: #00d4ff; font-size: 14px; }

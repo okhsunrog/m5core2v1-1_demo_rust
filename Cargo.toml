@@ -14,6 +14,7 @@ esp-hal = { git = "https://github.com/esp-rs/esp-hal", rev = "04c4243c", feature
 esp-rtos = { git = "https://github.com/esp-rs/esp-hal", rev = "04c4243c", features = [
   "embassy",
   "esp-alloc",
+  "esp-radio",
   "esp32",
   "log-04",
 ] }
@@ -48,6 +49,20 @@ embassy-sync = "0.7"
 ft6336u-dd = { version = "0.1.0", features = ["log"] }
 slint = { version = "1.15.1", default-features = false, features = ["unsafe-single-threaded", "libm", "renderer-software", "compat-1-2"] }
 allocator-api2 = { version = "0.3.0", default-features = false, features = ["alloc"] }
+ina3221-dd = { version = "0.1.0", features = ["log"] }
+pcf8563-dd = { version = "0.2.0", path = "../pcf8563-dd", features = ["log"] }
+
+# BLE
+esp-radio = { git = "https://github.com/esp-rs/esp-hal", rev = "04c4243c", features = [
+  "ble",
+  "esp-alloc",
+  "esp32",
+  "log-04",
+  "unstable",
+] }
+trouble-host = { version = "0.6.0", features = ["derive"] }
+bt-hci = "0.8.0"
+embassy-futures = "0.1"
 
 
 [profile.dev]
