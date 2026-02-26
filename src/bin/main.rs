@@ -147,6 +147,7 @@ async fn main(spawner: Spawner) -> ! {
             rotation: Rotation::Deg0,
             mirrored: false,
         })
+        .color_order(lcd_async::options::ColorOrder::Bgr)
         .invert_colors(ColorInversion::Inverted)
         .init(&mut delay)
         .await
