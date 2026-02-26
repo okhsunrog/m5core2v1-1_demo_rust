@@ -1,0 +1,90 @@
+export component MainWindow inherits Window {
+    in property <string> battery-percent: "?";
+    in property <string> battery-voltage: "?";
+    in property <string> vbus-voltage: "?";
+    in property <string> vsys-voltage: "?";
+    in property <string> temperature: "?";
+    in property <string> touch-info: "none";
+
+    background: #1a1a2e;
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 6px;
+
+        Text {
+            text: "M5Stack Core2 v1.1";
+            color: #00d4ff;
+            font-size: 18px;
+            horizontal-alignment: center;
+        }
+
+        Rectangle {
+            height: 1px;
+            background: #333366;
+        }
+
+        // Battery section
+        HorizontalLayout {
+            spacing: 8px;
+            Text { text: "Battery:"; color: #aaaaaa; font-size: 14px; width: 90px; }
+            Text { text: root.battery-percent + "%"; color: #00ff88; font-size: 14px; }
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+            Text { text: "Bat mV:"; color: #aaaaaa; font-size: 14px; width: 90px; }
+            Text { text: root.battery-voltage; color: white; font-size: 14px; }
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+            Text { text: "VBUS mV:"; color: #aaaaaa; font-size: 14px; width: 90px; }
+            Text { text: root.vbus-voltage; color: white; font-size: 14px; }
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+            Text { text: "VSYS mV:"; color: #aaaaaa; font-size: 14px; width: 90px; }
+            Text { text: root.vsys-voltage; color: white; font-size: 14px; }
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+            Text { text: "Temp:"; color: #aaaaaa; font-size: 14px; width: 90px; }
+            Text { text: root.temperature + " C"; color: white; font-size: 14px; }
+        }
+
+        Rectangle {
+            height: 1px;
+            background: #333366;
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+            Text { text: "Touch:"; color: #aaaaaa; font-size: 14px; width: 90px; }
+            Text { text: root.touch-info; color: #44ff44; font-size: 14px; }
+        }
+
+        Rectangle { vertical-stretch: 1; }
+
+        // Touch area indicator
+        ta := TouchArea {
+            Rectangle {
+                background: ta.pressed ? #334466 : #222244;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: #444488;
+                height: 50px;
+
+                Text {
+                    text: ta.pressed ? "Pressed!" : "Touch me";
+                    color: ta.pressed ? #00ff88 : #888888;
+                    font-size: 16px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}

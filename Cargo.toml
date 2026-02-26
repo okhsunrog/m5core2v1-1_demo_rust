@@ -45,6 +45,8 @@ lcd-async = { path = "../lcd-async" }
 embedded-graphics = "0.8"
 embassy-embedded-hal = "0.5"
 embassy-sync = "0.7"
+ft6336u-dd = { version = "0.1.0", path = "../ft6336u-dd", features = ["log"] }
+slint = { version = "1.15.1", default-features = false, features = ["unsafe-single-threaded", "libm", "renderer-software", "compat-1-2"] }
 
 
 [profile.dev]
@@ -60,3 +62,6 @@ incremental      = false
 lto              = 'fat'
 opt-level        = 's'
 overflow-checks  = false
+
+[build-dependencies]
+slint-build = "1.15.1"

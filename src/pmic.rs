@@ -4,7 +4,6 @@
 //! power management IC on the M5Stack Core2 v1.1 board.
 
 use axp2101_dd::{AdcChannel, Axp2101Async, AxpError, LdoId};
-use esp_hal::i2c::master::Error as I2cError;
 use log::info;
 
 /// Initialize the AXP2101 PMIC following M5Stack Core2 v1.1 initialization sequence
@@ -17,11 +16,12 @@ use log::info;
 /// - CHGLED configured
 /// - Vibration motor (DLDO1) disabled
 /// - ADC channels enabled for monitoring
-pub async fn init_pmic<I2C>(
+pub async fn init_pmic<I2C, E>(
     i2c: I2C,
-) -> Result<Axp2101Async<axp2101_dd::AxpInterface<I2C>, I2cError>, AxpError<I2cError>>
+) -> Result<Axp2101Async<axp2101_dd::AxpInterface<I2C>, E>, AxpError<E>>
 where
-    I2C: embedded_hal_async::i2c::I2c<Error = I2cError>,
+    I2C: embedded_hal_async::i2c::I2c<Error = E>,
+    E: core::fmt::Debug,
 {
     let mut axp = Axp2101Async::new(i2c);
 
@@ -128,11 +128,12 @@ where
 /// - BLDO2: (Not used in schematic)
 /// - DLDO1: Vibration motor
 /// - CHGLED: Blue power indicator LED (controlled separately, not an LDO)
-pub async fn configure_all_rails<I2C>(
-    axp: &mut Axp2101Async<axp2101_dd::AxpInterface<I2C>, I2cError>,
-) -> Result<(), AxpError<I2cError>>
+pub async fn configure_all_rails<I2C, E>(
+    axp: &mut Axp2101Async<axp2101_dd::AxpInterface<I2C>, E>,
+) -> Result<(), AxpError<E>>
 where
-    I2C: embedded_hal_async::i2c::I2c<Error = I2cError>,
+    I2C: embedded_hal_async::i2c::I2c<Error = E>,
+    E: core::fmt::Debug,
 {
     info!("Configuring M5Stack Core2 v1.1 power rails per schematic...");
 
@@ -208,12 +209,13 @@ where
 /// // Maximum brightness
 /// set_backlight_brightness(&mut axp, 100).await?;
 /// ```
-pub async fn set_backlight_brightness<I2C>(
-    axp: &mut Axp2101Async<axp2101_dd::AxpInterface<I2C>, I2cError>,
+pub async fn set_backlight_brightness<I2C, E>(
+    axp: &mut Axp2101Async<axp2101_dd::AxpInterface<I2C>, E>,
     percent: u8,
-) -> Result<(), AxpError<I2cError>>
+) -> Result<(), AxpError<E>>
 where
-    I2C: embedded_hal_async::i2c::I2c<Error = I2cError>,
+    I2C: embedded_hal_async::i2c::I2c<Error = E>,
+    E: core::fmt::Debug,
 {
     // Clamp percent to 0-100 range
     let percent = percent.min(100);
