@@ -34,7 +34,7 @@ use slint::platform::{PointerEventButton, WindowEvent};
 use slint::PhysicalPosition;
 use static_cell::StaticCell;
 
-use m5core2v1_1_esp_hal_demo::pmic::{self, set_backlight_brightness};
+use m5core2v1_1_esp_hal_demo::pmic::{self, Backlight, set_backlight};
 use m5core2v1_1_esp_hal_demo::slint_platform::EspPlatform;
 
 extern crate alloc;
@@ -101,7 +101,7 @@ async fn main(spawner: Spawner) -> ! {
     info!("Initializing PMIC...");
     let mut axp = pmic::init_pmic(i2c_pmic).await.unwrap();
     pmic::configure_all_rails(&mut axp).await.unwrap();
-    set_backlight_brightness(&mut axp, 50).await.unwrap();
+    set_backlight(&mut axp, Backlight::On(50)).await.unwrap();
     Timer::after(Duration::from_millis(300)).await;
 
     // --- Touch controller init ---
@@ -242,7 +242,7 @@ async fn main(spawner: Spawner) -> ! {
         if (new_bl - current_backlight).abs() > 0.01 {
             current_backlight = new_bl;
             let brightness = (current_backlight * 100.0) as u8;
-            let _ = set_backlight_brightness(&mut axp, brightness).await;
+            let _ = set_backlight(&mut axp, Backlight::On(brightness)).await;
         }
 
         // --- Update PMIC data periodically (~1s) ---

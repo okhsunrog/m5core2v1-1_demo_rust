@@ -168,81 +168,43 @@ where
     Ok(())
 }
 
-/// Set LCD backlight brightness for M5Stack Core2 v1.1
+/// LCD backlight state.
+pub enum Backlight {
+    /// Backlight on at given brightness (0-100%).
+    /// 0% = minimum visible brightness, 100% = maximum.
+    On(u8),
+    /// Backlight completely off (BLDO1 disabled).
+    Off,
+}
+
+/// Set LCD backlight for M5Stack Core2 v1.1.
 ///
 /// On Core2 v1.1, the LCD backlight is controlled by the BLDO1 output of the AXP2101 PMIC.
-/// Unlike PWM-based backlight control, this adjusts brightness by varying the voltage
-/// supplied to the backlight LED driver.
-///
-/// # How it works
-///
-/// The backlight circuit uses BLDO1 as the power supply. By changing the BLDO1 voltage,
-/// we effectively control the current through the backlight LEDs, which changes brightness.
-///
-/// - BLDO1 voltage range: 500mV to 3500mV (0.5V to 3.5V)
-/// - Practical backlight range: 2588mV to 3300mV
-///   - Below 2588mV: backlight LED driver doesn't turn on
-///   - At 3300mV: maximum brightness
-///
-/// # Brightness mapping
-///
-/// This function maps a 0-100 percent brightness value to a voltage:
-/// - percent = 0: BLDO1 is disabled (backlight completely off)
-/// - percent = 1-100: Maps to 2588mV to 3300mV
-///
-/// Values above 100 are clamped to 100.
-///
-/// # Arguments
-///
-/// * `axp` - Mutable reference to the AXP2101 driver
-/// * `percent` - Brightness level from 0 (off) to 100 (maximum)
-///
-/// # Example
-///
-/// ```ignore
-/// // Set backlight to 50% brightness
-/// set_backlight_brightness(&mut axp, 50).await?;
-///
-/// // Turn off backlight
-/// set_backlight_brightness(&mut axp, 0).await?;
-///
-/// // Maximum brightness
-/// set_backlight_brightness(&mut axp, 100).await?;
-/// ```
-pub async fn set_backlight_brightness<I2C, E>(
+/// Brightness is adjusted by varying the BLDO1 voltage (2588-3300mV usable range).
+pub async fn set_backlight<I2C, E>(
     axp: &mut Axp2101Async<axp2101_dd::AxpInterface<I2C>, E>,
-    percent: u8,
+    backlight: Backlight,
 ) -> Result<(), AxpError<E>>
 where
     I2C: embedded_hal_async::i2c::I2c<Error = E>,
     E: core::fmt::Debug,
 {
-    // Clamp percent to 0-100 range
-    let percent = percent.min(100);
+    match backlight {
+        Backlight::Off => {
+            axp.set_ldo_enable(LdoId::Bldo1, false).await?;
+            info!("Backlight disabled");
+        }
+        Backlight::On(percent) => {
+            let percent = percent.min(100);
+            // Map 0-100 to voltage 2588-3300mV
+            let voltage_mv = 2588 + (percent as u32 * 712 / 100);
 
-    if percent == 0 {
-        // Disable BLDO1 completely to turn off backlight
-        axp.set_ldo_enable(LdoId::Bldo1, false).await?;
-        info!("Backlight disabled");
-    } else {
-        // Map percent 1-100 to voltage 2588-3300mV
-        // Below ~2588mV the backlight LED driver doesn't turn on.
-        // Formula: voltage = 2588 + (percent - 1) * (3300 - 2588) / 99
-        //        = 2588 + (percent - 1) * 712 / 99
-        //
-        // At percent=1:   voltage = 2588mV (minimum visible brightness)
-        // At percent=50:  voltage ≈ 2940mV
-        // At percent=100: voltage = 3300mV (maximum)
-        let voltage_mv = 2588 + ((percent as u32 - 1) * 712 / 99);
+            axp.set_ldo_voltage_mv(LdoId::Bldo1, voltage_mv as u16)
+                .await?;
+            axp.set_ldo_enable(LdoId::Bldo1, true).await?;
 
-        // Set BLDO1 voltage (controls backlight brightness)
-        axp.set_ldo_voltage_mv(LdoId::Bldo1, voltage_mv as u16)
-            .await?;
-
-        // Ensure BLDO1 is enabled
-        axp.set_ldo_enable(LdoId::Bldo1, true).await?;
-
-        info!("Backlight set to {}% ({}mV)", percent, voltage_mv);
+            info!("Backlight set to {}% ({}mV)", percent, voltage_mv);
+        }
     }
 
     Ok(())
