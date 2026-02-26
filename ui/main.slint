@@ -77,7 +77,6 @@ export component MainWindow inherits Window {
     in property <string> free-sram: "?";
     in property <string> free-psram: "?";
     in property <string> uptime: "?";
-    in property <string> chip-id: "?";
     in property <string> spi-freq: "?";
     in property <string> i2c-freq: "?";
     in property <string> display-res: "?";
@@ -326,7 +325,6 @@ export component MainWindow inherits Window {
                 Rectangle { height: 1px; background: #222244; }
 
                 StatusRow { label: "I2C freq:"; value: root.i2c-freq; }
-                StatusRow { label: "Chip ID:"; value: root.chip-id; }
 
                 Rectangle { height: 8px; }
                 Text { text: "Runtime"; color: #00d4ff; font-size: 14px; }

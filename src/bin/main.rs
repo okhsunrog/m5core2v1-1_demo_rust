@@ -230,11 +230,18 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
     ui.set_dma_buf_size(format!("{} KB", DMA_BUF_SIZE / 1024).into());
     ui.set_backlight_value(0.5);
 
-    // Allocate pixel buffer on PSRAM (150KB — too large for SRAM)
+    // Allocate pixel buffers on PSRAM (150KB each — too large for SRAM)
+    // render_buf: Slint renders here (native LE), kept intact for dirty tracking
+    // tx_buf: byte-swapped copy sent to display (BE for ILI9342C)
     let num_pixels = (WIDTH as usize) * (HEIGHT as usize);
-    let mut pixel_buf =
+    let mut render_buf =
         allocator_api2::vec::Vec::with_capacity_in(num_pixels, esp_alloc::ExternalMemory);
-    pixel_buf.resize(num_pixels, Rgb565Pixel(0));
+    render_buf.resize(num_pixels, Rgb565Pixel(0));
+    let mut tx_buf = allocator_api2::vec::Vec::<u8, _>::with_capacity_in(
+        num_pixels * 2,
+        esp_alloc::ExternalMemory,
+    );
+    tx_buf.resize(num_pixels * 2, 0);
 
     // Spawn USB PD task on external I2C bus
     spawner.must_spawn(pd::pd_task(i2c1));
@@ -252,6 +259,7 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
         // FPS tracking
         let mut fps_timer = Instant::now();
         let mut fps_frame_count: u32 = 0;
+        let mut render_ms_accum: u64 = 0;
         // Current backlight
         let mut current_backlight: f32 = 0.5;
         // External 5V output state
@@ -449,27 +457,21 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
             // --- Render ---
             let render_start = Instant::now();
             slint_window.draw_if_needed(|renderer| {
-                renderer.render(&mut pixel_buf, WIDTH as usize);
+                renderer.render(&mut render_buf, WIDTH as usize);
             });
-            let render_ms = render_start.elapsed().as_millis();
+            render_ms_accum += render_start.elapsed().as_millis();
 
-            // Swap bytes: Slint renders native (little-endian), ILI9342C expects big-endian RGB565
-            for pixel in pixel_buf.iter_mut() {
-                pixel.0 = pixel.0.swap_bytes();
+            // Copy render buffer to tx buffer with byte-swap (LE→BE for ILI9342C)
+            // render_buf stays untouched so Slint's dirty tracking works with ReusedBuffer
+            for (pixel, chunk) in render_buf.iter().zip(tx_buf.chunks_exact_mut(2)) {
+                let be = pixel.0.to_be_bytes();
+                chunk[0] = be[0];
+                chunk[1] = be[1];
             }
 
             // Send framebuffer to display
-            let raw_bytes: &[u8] = unsafe {
-                core::slice::from_raw_parts(pixel_buf.as_ptr() as *const u8, pixel_buf.len() * 2)
-            };
-            display
-                .show_raw_data(0, 0, WIDTH, HEIGHT, raw_bytes)
-                .await
-                .unwrap();
-
-            // Swap back so Slint's dirty tracking works correctly with ReusedBuffer
-            for pixel in pixel_buf.iter_mut() {
-                pixel.0 = pixel.0.swap_bytes();
+            if let Err(e) = display.show_raw_data(0, 0, WIDTH, HEIGHT, &tx_buf).await {
+                log::warn!("Display write failed: {:?}", e);
             }
 
             // --- FPS calculation ---
@@ -480,8 +482,10 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
                 ui.set_fps_text(format!("{}", fps).into());
 
                 let frame_ms = elapsed_ms / fps_frame_count.max(1) as u64;
+                let avg_render_ms = render_ms_accum / fps_frame_count.max(1) as u64;
                 ui.set_frame_time(format!("{} ms", frame_ms).into());
-                ui.set_render_time(format!("{} ms", render_ms).into());
+                ui.set_render_time(format!("{} ms", avg_render_ms).into());
+                render_ms_accum = 0;
 
                 fps_frame_count = 0;
                 fps_timer = Instant::now();
