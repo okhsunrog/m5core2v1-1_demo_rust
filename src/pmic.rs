@@ -130,7 +130,7 @@ where
 /// - ALDO3: Speaker enable (NS4168)
 /// - ALDO4: LCD & microSD power
 /// - BLDO1: LCD backlight
-/// - BLDO2: (Not used in schematic)
+/// - BLDO2: External 5V output enable (AXP_BoostEN)
 /// - DLDO1: Vibration motor
 /// - CHGLED: Blue power indicator LED (controlled separately, not an LDO)
 pub async fn configure_all_rails<I2C, E>(
