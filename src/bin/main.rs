@@ -238,6 +238,8 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
         let mut fps_frame_count: u32 = 0;
         // Current backlight
         let mut current_backlight: f32 = 0.5;
+        // External 5V output state
+        let mut current_ext5v: bool = false;
 
         loop {
             let frame_start = Instant::now();
@@ -291,6 +293,16 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
                 current_backlight = new_bl;
                 let brightness = (current_backlight * 100.0) as u8;
                 let _ = set_backlight(&mut axp, Backlight::On(brightness)).await;
+            }
+
+            // Handle external 5V output toggle (BLDO2 → AXP_BoostEN)
+            let new_ext5v = ui.get_ext5v_enabled();
+            if new_ext5v != current_ext5v {
+                current_ext5v = new_ext5v;
+                let _ = axp
+                    .set_ldo_enable(axp2101_dd::LdoId::Bldo2, current_ext5v)
+                    .await;
+                info!("External 5V output: {}", if current_ext5v { "ON" } else { "OFF" });
             }
 
             // --- Update PMIC data periodically (~1s) ---

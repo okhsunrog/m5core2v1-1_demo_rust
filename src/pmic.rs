@@ -72,15 +72,15 @@ where
         })
         .await?;
 
-    // 5. CHGLED setting — blue LED near power button
-    // Current config: blinks during charging, off when full (charger indicator mode).
-    // Can be customized: chgled_func(0)=off, (1)=charge indicator, (2)=manual on, (3)=manual off
+    // 5. CHGLED — blue LED near power button
+    // TypeB: off on battery, blinks 1Hz while charging, solid on when VBUS present + full/no-bat
+    // Alternatives: TypeA (different charge indication), Manual (control via chgled_out_ctrl)
     axp.ll
         .chg_led_control()
         .write_async(|w| {
             w.set_chgled_en(true);
-            w.set_chgled_func(1);
-            w.set_chgled_out_ctrl(1);
+            w.set_chgled_func(axp2101_dd::ChgledFunction::TypeB);
+            w.set_chgled_out_ctrl(axp2101_dd::ChgledOutputControl::Blink1Hz);
         })
         .await?;
 

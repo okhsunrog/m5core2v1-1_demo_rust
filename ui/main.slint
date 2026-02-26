@@ -70,6 +70,7 @@ export component MainWindow inherits Window {
     in-out property <int> active-tab: 0;
     in-out property <int> tap-count: 0;
     in-out property <float> backlight-value: 0.5;
+    in-out property <bool> ext5v-enabled: false;
 
     // INA3221 properties
     in property <string> ina-ch1-voltage: "?";
@@ -402,6 +403,41 @@ export component MainWindow inherits Window {
                 Rectangle { height: 1px; background: #222244; }
 
                 StatusRow { label: "Uptime:"; value: root.uptime; }
+
+                Rectangle { height: 8px; }
+                Text { text: "Controls"; color: #00d4ff; font-size: 14px; }
+                Rectangle { height: 1px; background: #222244; }
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    Text { text: "Ext 5V out:"; color: #aaaaaa; font-size: 13px; width: 80px; vertical-alignment: center; }
+                    ext5v-toggle := TouchArea {
+                        width: 44px;
+                        height: 24px;
+                        clicked => { root.ext5v-enabled = !root.ext5v-enabled; }
+                        Rectangle {
+                            background: root.ext5v-enabled ? #00d4ff : #333355;
+                            border-radius: 12px;
+                            animate background { duration: 150ms; }
+                            Rectangle {
+                                x: root.ext5v-enabled ? parent.width - self.width - 2px : 2px;
+                                y: 2px;
+                                width: 20px;
+                                height: 20px;
+                                border-radius: 10px;
+                                background: white;
+                                animate x { duration: 150ms; }
+                            }
+                        }
+                    }
+                    Text {
+                        text: root.ext5v-enabled ? "ON" : "OFF";
+                        color: root.ext5v-enabled ? #00ff88 : #666666;
+                        font-size: 13px;
+                        vertical-alignment: center;
+                    }
+                }
             }
         }
     }

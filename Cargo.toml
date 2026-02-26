@@ -37,7 +37,7 @@ static_cell      = "2.1.1"
 heapless         = "0.8"
 
 # PMIC (AXP2101) driver
-axp2101-dd = { version = "0.2.2", features = ["log"] }
+axp2101-dd = { version = "0.2.3", features = ["log"] }
 embedded-hal = "1.0"
 embedded-hal-async = "1.0"
 
