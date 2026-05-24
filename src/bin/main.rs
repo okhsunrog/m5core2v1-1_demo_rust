@@ -63,9 +63,10 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
     esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 96 * 1024);
 
     // PSRAM
-    esp_alloc::psram_allocator!(&peripherals.PSRAM, esp_hal::psram);
+    let psram = esp_hal::psram::Psram::new(peripherals.PSRAM, Default::default());
+    esp_alloc::psram_allocator!(&psram);
 
-    let (psram_ptr, psram_size) = esp_hal::psram::psram_raw_parts(&peripherals.PSRAM);
+    let (psram_ptr, psram_size) = psram.raw_parts();
     info!(
         "PSRAM mapped: {} KB ({} bytes) at {:?}",
         psram_size / 1024,
