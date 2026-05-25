@@ -372,6 +372,21 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
     }
 }
 
+/// Format into a fixed stack buffer and return a Slint SharedString.
+/// Avoids the per-frame `alloc::String` allocation that `format!` causes.
+fn sstr<const N: usize>(args: core::fmt::Arguments) -> slint::SharedString {
+    use core::fmt::Write as _;
+    let mut s = heapless::String::<N>::new();
+    let _ = s.write_fmt(args);
+    slint::SharedString::from(s.as_str())
+}
+
+macro_rules! sstr {
+    ($($arg:tt)*) => {
+        sstr::<32>(format_args!($($arg)*))
+    };
+}
+
 #[embassy_executor::task]
 async fn render_task(
     spi_periph: esp_hal::peripherals::SPI2<'static>,
@@ -496,23 +511,26 @@ async fn render_task(
             }
 
             if let Some(measurements) = I2C_MEASUREMENTS_SIGNAL.try_take() {
-                ui.set_battery_percent(format!("{}", measurements.soc).into());
-                ui.set_battery_voltage(format!("{}", measurements.battery_mv).into());
-                ui.set_vbus_voltage(format!("{}", measurements.vbus_mv).into());
-                ui.set_vsys_voltage(format!("{}", measurements.vsys_mv).into());
-                ui.set_temperature(format!("{:.1}", measurements.temp_c).into());
+                ui.set_battery_percent(sstr!("{}", measurements.soc));
+                ui.set_battery_voltage(sstr!("{}", measurements.battery_mv));
+                ui.set_vbus_voltage(sstr!("{}", measurements.vbus_mv));
+                ui.set_vsys_voltage(sstr!("{}", measurements.vsys_mv));
+                ui.set_temperature(sstr!("{:.1}", measurements.temp_c));
 
-                ui.set_ina_ch1_voltage(format!("{:.0} mV", measurements.ina_voltage_mv[0]).into());
-                ui.set_ina_ch1_current(format!("{:.1} mA", measurements.ina_current_ma[0]).into());
-                ui.set_ina_ch2_voltage(format!("{:.0} mV", measurements.ina_voltage_mv[1]).into());
-                ui.set_ina_ch2_current(format!("{:.1} mA", measurements.ina_current_ma[1]).into());
-                ui.set_ina_ch3_voltage(format!("{:.0} mV", measurements.ina_voltage_mv[2]).into());
-                ui.set_ina_ch3_current(format!("{:.1} mA", measurements.ina_current_ma[2]).into());
+                ui.set_ina_ch1_voltage(sstr!("{:.0} mV", measurements.ina_voltage_mv[0]));
+                ui.set_ina_ch1_current(sstr!("{:.1} mA", measurements.ina_current_ma[0]));
+                ui.set_ina_ch2_voltage(sstr!("{:.0} mV", measurements.ina_voltage_mv[1]));
+                ui.set_ina_ch2_current(sstr!("{:.1} mA", measurements.ina_current_ma[1]));
+                ui.set_ina_ch3_voltage(sstr!("{:.0} mV", measurements.ina_voltage_mv[2]));
+                ui.set_ina_ch3_current(sstr!("{:.1} mA", measurements.ina_current_ma[2]));
 
                 if let Some(dt) = measurements.rtc_time {
-                    ui.set_clock_text(
-                        format!("{:02}:{:02}:{:02}", dt.hours, dt.minutes, dt.seconds).into(),
-                    );
+                    ui.set_clock_text(sstr!(
+                        "{:02}:{:02}:{:02}",
+                        dt.hours,
+                        dt.minutes,
+                        dt.seconds
+                    ));
                 }
             }
 
@@ -551,14 +569,14 @@ async fn render_task(
                     esp_alloc::HEAP.free_caps(esp_alloc::MemoryCapability::Internal.into());
                 let free_psram =
                     esp_alloc::HEAP.free_caps(esp_alloc::MemoryCapability::External.into());
-                ui.set_free_sram(format!("{} KB", free_sram / 1024).into());
-                ui.set_free_psram(format!("{} KB", free_psram / 1024).into());
+                ui.set_free_sram(sstr!("{} KB", free_sram / 1024));
+                ui.set_free_psram(sstr!("{} KB", free_psram / 1024));
 
                 // Update uptime
                 let up_secs = Instant::now().as_millis() / 1000;
                 let mins = up_secs / 60;
                 let secs = up_secs % 60;
-                ui.set_uptime(format!("{}m {}s", mins, secs).into());
+                ui.set_uptime(sstr!("{}m {}s", mins, secs));
             }
 
             // --- Render ---
@@ -578,12 +596,12 @@ async fn render_task(
             if fps_timer.elapsed() >= Duration::from_secs(1) {
                 let elapsed_ms = fps_timer.elapsed().as_millis().max(1);
                 let fps = (fps_frame_count as u64 * 1000) / elapsed_ms;
-                ui.set_fps_text(format!("{}", fps).into());
+                ui.set_fps_text(sstr!("{}", fps));
 
                 let frame_ms = elapsed_ms / fps_frame_count.max(1) as u64;
                 let avg_render_ms = render_ms_accum / fps_frame_count.max(1) as u64;
-                ui.set_frame_time(format!("{} ms", frame_ms).into());
-                ui.set_render_time(format!("{} ms", avg_render_ms).into());
+                ui.set_frame_time(sstr!("{} ms", frame_ms));
+                ui.set_render_time(sstr!("{} ms", avg_render_ms));
                 render_ms_accum = 0;
 
                 fps_frame_count = 0;
