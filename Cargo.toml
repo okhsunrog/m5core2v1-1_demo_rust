@@ -60,12 +60,19 @@ embassy-futures = "0.1"
 bytemuck = "1.25.0"
 mipidsi = "0.10.0"
 trouble-host = { git = "https://github.com/embassy-rs/trouble", version = "0.6.0", features = ["derive"] }
+esp-storage = { version = "0.9.0", features = ["esp32"] }
+sequential-storage = { version = "7.2.0", features = ["postcard"] }
+serde = { version = "1.0.228", default-features = false, features = ["derive"] }
 
 
 [profile.dev]
 # Rust debug is too slow.
 # For debug builds always builds with some optimization
 opt-level = "s"
+
+# esp-storage requires opt-level >= 2 for ESP32, even in dev builds.
+[profile.dev.package.esp-storage]
+opt-level = 3
 
 [profile.release]
 codegen-units    = 1     # LLVM can perform better optimizations using a single thread
@@ -75,6 +82,10 @@ incremental      = false
 lto              = 'fat'
 opt-level        = 's'
 overflow-checks  = false
+
+# esp-storage requires opt-level >= 2 for ESP32 (timing-sensitive flash ops).
+[profile.release.package.esp-storage]
+opt-level = 3
 
 [build-dependencies]
 slint-build = { git = "https://github.com/okhsunrog/slint", branch = "rgb565-be" }

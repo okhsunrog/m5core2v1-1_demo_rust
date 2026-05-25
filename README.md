@@ -25,6 +25,10 @@ A feature-rich demo application for the [M5Stack Core2 v1.1](https://docs.m5stac
 - **INA3221** 3-channel power monitor (battery, USB, system rail)
 - **BM8563 RTC** with clock display
 - **BLE GATT server** (trouble-host) for setting RTC time wirelessly
+- **Persistent settings** — backlight brightness and Ext 5V state stored
+  in flash via [`sequential-storage`](https://crates.io/crates/sequential-storage)
+  with postcard serialization. Backlight writes are debounced 3 s so dragging
+  the slider doesn't hammer flash.
 - **Live stats** — FPS, frame time, render time, heap usage, uptime
 
 ## Hardware
@@ -79,6 +83,8 @@ src/
   bin/main.rs        — Entry point, peripheral init, core-0 tasks + core-1 spawn
   lib.rs             — Library root
   ble.rs             — BLE GATT server (trouble-host)
+  config_store.rs    — Persistent settings (backlight, Ext 5V) in flash via
+                       sequential-storage + postcard, with debounced writes
   display_dma.rs     — Per-line DMA display driver with ping-pong tile buffers
                        and `LineBufferProvider` for Slint's `render_by_line`
   pmic.rs            — AXP2101 PMIC initialization and helpers
@@ -94,11 +100,15 @@ scripts/
 Driver crates from crates.io:
 
 - [axp2101-dd](https://crates.io/crates/axp2101-dd) — AXP2101 PMIC driver
-- [mipidsi](https://crates.io/crates/mipidsi) — MIPI DSI / ILI9342C init (only used during boot;
-  the steady-state render path is the custom DMA driver in `src/display_dma.rs`)
+- [mipidsi](https://github.com/almindor/mipidsi) — MIPI DCS display driver
+  (only used during boot to initialize the ILI9342C; the steady-state render
+  path is the custom DMA driver in `src/display_dma.rs`)
 - [ft6336u-dd](https://crates.io/crates/ft6336u-dd) — FT6336U touch driver
 - [ina3221-dd](https://crates.io/crates/ina3221-dd) — INA3221 power monitor driver
 - [pcf8563-dd](https://crates.io/crates/pcf8563-dd) — PCF8563/BM8563 RTC driver
+- [esp-storage](https://crates.io/crates/esp-storage) +
+  [sequential-storage](https://crates.io/crates/sequential-storage) — wear-leveled
+  flash KV storage for persisted settings (postcard-serialized)
 
 Git dependencies:
 
@@ -106,9 +116,6 @@ Git dependencies:
 - [slint](https://github.com/okhsunrog/slint/tree/rgb565-be) — fork with `Rgb565PixelBE` so
   the software renderer writes big-endian pixels directly for the ILI9342C, avoiding a
   post-render byte swap. Tracks upstream.
-
-esp-hal ecosystem crates are pinned to crates.io releases (esp-hal 1.1.1, esp-rtos 0.3.0,
-esp-radio 0.18.0).
 
 ## License
 

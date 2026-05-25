@@ -82,10 +82,12 @@ export component MainWindow inherits Window {
 
     // System info properties
     in property <string> cpu-freq: "?";
-    in property <string> psram-size: "?";
     in property <string> free-sram: "?";
-    in property <string> free-psram: "?";
     in property <string> uptime: "?";
+
+    // Triggered when the user taps the Power Off button on the System tab.
+    callback power-off();
+
     in property <string> spi-freq: "?";
     in property <string> i2c-freq: "?";
     in property <string> display-res: "?";
@@ -363,13 +365,33 @@ export component MainWindow inherits Window {
                 padding-top: 4px;
                 padding-bottom: 8px;
 
+                HorizontalLayout {
+                    alignment: end;
+                    padding-bottom: 4px;
+                    poweroff-btn := TouchArea {
+                        width: 110px;
+                        height: 32px;
+                        clicked => { root.power-off(); }
+                        Rectangle {
+                            background: poweroff-btn.pressed ? #aa1f3a : #d62a4d;
+                            border-radius: 6px;
+                            animate background { duration: 100ms; }
+                            Text {
+                                text: "⏻ Power Off";
+                                color: white;
+                                font-size: 14px;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+
                 Text { text: "Hardware"; color: #00d4ff; font-size: 14px; }
                 Rectangle { height: 1px; background: #222244; }
 
                 StatusRow { label: "CPU:"; value: root.cpu-freq; }
-                StatusRow { label: "PSRAM:"; value: root.psram-size; }
                 StatusRow { label: "SRAM free:"; value: root.free-sram; }
-                StatusRow { label: "PSRAM free:"; value: root.free-psram; }
                 StatusRow { label: "PMIC:"; value: root.pmic-chip; }
                 StatusRow { label: "Touch IC:"; value: root.touch-chip; }
                 StatusRow { label: "RTC:"; value: "BM8563"; }

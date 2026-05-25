@@ -39,6 +39,9 @@ use slint::platform::{PointerEventButton, WindowEvent};
 use static_cell::StaticCell;
 
 use m5core2v1_1_esp_hal_demo::ble;
+use m5core2v1_1_esp_hal_demo::config_store::{
+    self, CONFIG_LOADED, PERSIST_BACKLIGHT, PERSIST_EXT5V,
+};
 use m5core2v1_1_esp_hal_demo::display_dma::{DmaLineDisplay, InitSpiDevice};
 use m5core2v1_1_esp_hal_demo::pmic::{self, Backlight, set_backlight};
 use m5core2v1_1_esp_hal_demo::slint_platform::EspPlatform;
@@ -87,6 +90,7 @@ static I2C_INIT_SIGNAL: Signal<CriticalSectionRawMutex, I2cInitInfo> = Signal::n
 static TOUCH_SIGNAL: Signal<CriticalSectionRawMutex, TouchState> = Signal::new();
 static I2C_MEASUREMENTS_SIGNAL: Signal<CriticalSectionRawMutex, I2cMeasurements> = Signal::new();
 static BACKLIGHT_SIGNAL: Signal<CriticalSectionRawMutex, u8> = Signal::new();
+static POWER_OFF_SIGNAL: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 static EXT5V_SIGNAL: Signal<CriticalSectionRawMutex, bool> = Signal::new();
 static RTC_SET_SIGNAL: Signal<CriticalSectionRawMutex, DateTime> = Signal::new();
 
@@ -197,6 +201,13 @@ async fn i2c_service_task(i2c_bus: &'static SharedI2cBus) {
     let mut measurement_timer = Instant::now();
 
     loop {
+        if POWER_OFF_SIGNAL.try_take().is_some() {
+            info!("Power off requested, shutting down...");
+            if let Err(e) = axp.power_off().await {
+                info!("Failed to power off: {:?}", e);
+            }
+        }
+
         if let Some(brightness) = BACKLIGHT_SIGNAL.try_take() {
             let _ = set_backlight(&mut axp, Backlight::On(brightness)).await;
         }
@@ -306,7 +317,6 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
     //     psram_size,
     //     psram_ptr
     // );
-    let psram_size = 0usize;
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     let sw_ints =
@@ -333,6 +343,7 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
 
     spawner.spawn(i2c_service_task(i2c_bus).unwrap());
     spawner.spawn(ble_task(controller).unwrap());
+    spawner.spawn(config_store::task(peripherals.FLASH).unwrap());
 
     // Move display + Slint render loop onto the second core so heavy frames
     // (e.g. animation screens) can't starve BLE / touch on core 0.
@@ -358,7 +369,6 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
                 spawner.spawn(
                     render_task(
                         spi_periph, dma_spi2, gpio_sck, gpio_mosi, gpio_miso, gpio_cs, gpio_dc,
-                        psram_size,
                     )
                     .unwrap(),
                 );
@@ -367,9 +377,8 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
     );
 
     // Core 0 just stays alive to keep its tasks running.
-    loop {
-        Timer::after(Duration::from_secs(3600)).await;
-    }
+    core::future::pending::<()>().await;
+    unreachable!()
 }
 
 /// Format into a fixed stack buffer and return a Slint SharedString.
@@ -396,7 +405,6 @@ async fn render_task(
     gpio_miso: esp_hal::peripherals::GPIO38<'static>,
     gpio_cs: esp_hal::peripherals::GPIO5<'static>,
     gpio_dc: esp_hal::peripherals::GPIO15<'static>,
-    psram_size: usize,
 ) {
     info!("[core1] render task starting");
 
@@ -475,14 +483,27 @@ async fn render_task(
     slint_window.set_size(slint::PhysicalSize::new(WIDTH as u32, HEIGHT as u32));
 
     ui.set_cpu_freq("240 MHz".into());
-    ui.set_psram_size(format!("{} KB", psram_size / 1024).into());
     ui.set_display_res(format!("{}x{}", WIDTH, HEIGHT).into());
     ui.set_spi_freq(format!("{} MHz", SPI_FREQ_MHZ).into());
     ui.set_i2c_freq("400 kHz".into());
     ui.set_touch_chip(format!("FT6336U (0x{:02X})", i2c_init.touch_chip_id).into());
     ui.set_pmic_chip("AXP2101".into());
     ui.set_dma_buf_size(format!("{} KB", DMA_BUF_SIZE / 1024).into());
-    ui.set_backlight_value(0.5);
+
+    ui.on_power_off(|| POWER_OFF_SIGNAL.signal(()));
+
+    // Apply persisted settings if present, otherwise sensible defaults.
+    let loaded = CONFIG_LOADED.wait().await;
+    let initial_backlight = loaded.backlight.unwrap_or(50);
+    let initial_ext5v = loaded.ext5v.unwrap_or(false);
+    info!(
+        "[core1] applying config: backlight={}, ext5v={}",
+        initial_backlight, initial_ext5v
+    );
+    ui.set_backlight_value(initial_backlight as f32 / 100.0);
+    ui.set_ext5v_enabled(initial_ext5v);
+    BACKLIGHT_SIGNAL.signal(initial_backlight);
+    EXT5V_SIGNAL.signal(initial_ext5v);
 
     info!("[core1] Starting Slint main loop...");
 
@@ -495,10 +516,10 @@ async fn render_task(
         let mut fps_timer = Instant::now();
         let mut fps_frame_count: u32 = 0;
         let mut render_ms_accum: u64 = 0;
-        // Current backlight
-        let mut current_backlight: f32 = 0.5;
+        // Current backlight (0.0..1.0) — initial value mirrors the loaded UI setting.
+        let mut current_backlight: f32 = initial_backlight as f32 / 100.0;
         // External 5V output state
-        let mut current_ext5v: bool = false;
+        let mut current_ext5v: bool = initial_ext5v;
 
         loop {
             let frame_start = Instant::now();
@@ -534,19 +555,23 @@ async fn render_task(
                 }
             }
 
-            // Handle backlight changes from UI slider
+            // Handle backlight changes from UI slider. Apply immediately to
+            // the PMIC; persistence is debounced (writes happen ~3s after
+            // the user lets go of the slider).
             let new_bl = ui.get_backlight_value();
             if (new_bl - current_backlight).abs() > 0.01 {
                 current_backlight = new_bl;
                 let brightness = (current_backlight.max(0.0).min(1.0) * 100.0) as u8;
                 BACKLIGHT_SIGNAL.signal(brightness);
+                PERSIST_BACKLIGHT.signal(brightness);
             }
 
-            // Handle external 5V output toggle (BLDO2 -> AXP_BoostEN)
+            // Handle external 5V output toggle (BLDO2 -> AXP_BoostEN).
             let new_ext5v = ui.get_ext5v_enabled();
             if new_ext5v != current_ext5v {
                 current_ext5v = new_ext5v;
                 EXT5V_SIGNAL.signal(current_ext5v);
+                PERSIST_EXT5V.signal(current_ext5v);
             }
 
             if let Ok(buf) = ble::TIME_CHANNEL.try_receive() {
@@ -567,10 +592,7 @@ async fn render_task(
                 // Update free heap stats
                 let free_sram =
                     esp_alloc::HEAP.free_caps(esp_alloc::MemoryCapability::Internal.into());
-                let free_psram =
-                    esp_alloc::HEAP.free_caps(esp_alloc::MemoryCapability::External.into());
                 ui.set_free_sram(sstr!("{} KB", free_sram / 1024));
-                ui.set_free_psram(sstr!("{} KB", free_psram / 1024));
 
                 // Update uptime
                 let up_secs = Instant::now().as_millis() / 1000;
