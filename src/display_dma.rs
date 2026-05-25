@@ -157,10 +157,27 @@ where
         let min_capacity = first_buf.capacity().min(second_buf.capacity());
         let line_bytes = width as usize * BYTES_PER_PIXEL;
         let max_capacity_lines = min_capacity / line_bytes.max(1);
-        let max_tile_lines = max_tile_lines.max(1).min(max_capacity_lines);
+        // ESP32 SPI transfers are limited to ~32 KB by an 18-bit length field;
+        // clamp tile size so a single `RAM_WRITE` payload never exceeds it.
+        const SPI_MAX_TRANSFER: usize = 32 * 1024;
+        let max_spi_lines = SPI_MAX_TRANSFER / line_bytes.max(1);
+        let max_tile_lines = max_tile_lines
+            .max(1)
+            .min(max_capacity_lines)
+            .min(max_spi_lines);
         if max_tile_lines == 0 {
             return Err(DmaLineDisplayError::BufferTooSmall);
         }
+
+        // `process_line` reinterprets `render_buf` as `[Rgb565PixelBE]` via
+        // `bytemuck::cast_slice_mut`, which requires 2-byte alignment. DMA
+        // buffers from `dma_buffers!` are word-aligned, so this holds, but
+        // make the invariant explicit.
+        debug_assert!(
+            first_buf.as_slice().as_ptr() as usize % 2 == 0
+                && second_buf.as_slice().as_ptr() as usize % 2 == 0,
+            "DMA buffers must be 2-byte aligned for Rgb565PixelBE casting"
+        );
 
         Ok(Self {
             spi: Some(spi),

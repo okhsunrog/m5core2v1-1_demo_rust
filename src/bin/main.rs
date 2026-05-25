@@ -90,6 +90,10 @@ static BACKLIGHT_SIGNAL: Signal<CriticalSectionRawMutex, u8> = Signal::new();
 static EXT5V_SIGNAL: Signal<CriticalSectionRawMutex, bool> = Signal::new();
 static RTC_SET_SIGNAL: Signal<CriticalSectionRawMutex, DateTime> = Signal::new();
 
+// Raw FT6336U coordinates are used as PhysicalPosition directly. This is only
+// correct because the display is initialized with `Rotation::Deg0` and no
+// mirroring. If the display orientation changes, touch coordinates must be
+// transformed to match (rotated/mirrored to the new display frame).
 fn dispatch_touch_state(
     ui: &MainWindow,
     last_touch_pos: &mut Option<slint::LogicalPosition>,
