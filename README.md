@@ -31,7 +31,7 @@ A feature-rich demo application for the [M5Stack Core2 v1.1](https://docs.m5stac
 
 | Component | Chip | Interface |
 |-----------|------|-----------|
-| MCU | ESP32 (240 MHz, 520 KB SRAM, 4 MB PSRAM) | — |
+| MCU | ESP32 (240 MHz, 520 KB SRAM) | — |
 | Display | ILI9342C 320x240 | SPI + DMA |
 | Touch | FT6336U | I2C (0x38) |
 | PMIC | AXP2101 | I2C (0x34) |
@@ -41,13 +41,12 @@ A feature-rich demo application for the [M5Stack Core2 v1.1](https://docs.m5stac
 
 ## Memory Layout
 
-The ESP32 DRAM is split across regions. With BLE enabled, 64 KB is reserved for the Bluetooth controller. PSRAM is not used in this build — line-by-line DMA streaming removes the need for a 150 KB framebuffer:
+The ESP32 DRAM is split across regions. With BLE enabled, 64 KB is reserved for the Bluetooth controller. Line-by-line DMA streaming means no full framebuffer is needed, so everything fits in internal SRAM:
 
 | Region | Size | Usage |
 |--------|------|-------|
 | DRAM (main) | 128 KB | BSS (statics, DMA tile buffers, stacks) |
 | DRAM2 (reclaimed) | 96 KB | Heap (Slint, BLE, general allocations) |
-| PSRAM | 4 MB | unused (init code preserved as comment) |
 
 ## Building
 
