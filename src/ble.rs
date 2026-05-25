@@ -43,14 +43,13 @@ pub async fn run(controller: ExternalController<BleConnector<'_>, 1>) {
     let address: Address = Address::random([0xff, 0x8f, 0x1a, 0x05, 0xe4, 0xff]);
     info!("[ble] address = {:?}", address);
 
-    let mut resources: HostResources<DefaultPacketPool, CONNECTIONS_MAX, L2CAP_CHANNELS_MAX> =
+    let mut resources: HostResources<_, DefaultPacketPool, CONNECTIONS_MAX, L2CAP_CHANNELS_MAX> =
         HostResources::new();
-    let stack = trouble_host::new(controller, &mut resources).set_random_address(address);
-    let Host {
-        mut peripheral,
-        mut runner,
-        ..
-    } = stack.build();
+    let stack = trouble_host::new(controller, &mut resources)
+        .set_random_address(address)
+        .build();
+    let mut runner = stack.runner();
+    let mut peripheral = stack.peripheral();
 
     let server = Server::new_with_config(GapConfig::Peripheral(PeripheralConfig {
         name: "M5Core2",
@@ -127,19 +126,19 @@ async fn handle_connection<P: PacketPool>(server: &Server<'_>, conn: &GattConnec
                 if let GattEvent::Write(ref write_event) = event
                     && write_event.handle() == time_handle
                 {
-                    let data = write_event.data();
-                    if data.len() == 7 {
-                        let mut buf = [0u8; 7];
-                        buf.copy_from_slice(data);
-                        info!(
-                            "[ble] time received: 20{:02}-{:02}-{:02} {:02}:{:02}:{:02}",
-                            buf[0], buf[1], buf[2], buf[4], buf[5], buf[6]
-                        );
-                        // Non-blocking send — drop if channel full
-                        let _ = TIME_CHANNEL.try_send(buf);
-                    } else {
-                        warn!("[ble] invalid time data length: {}", data.len());
-                    }
+                    write_event.with_data(|_offset, data| {
+                        if data.len() == 7 {
+                            let mut buf = [0u8; 7];
+                            buf.copy_from_slice(data);
+                            info!(
+                                "[ble] time received: 20{:02}-{:02}-{:02} {:02}:{:02}:{:02}",
+                                buf[0], buf[1], buf[2], buf[4], buf[5], buf[6]
+                            );
+                            let _ = TIME_CHANNEL.try_send(buf);
+                        } else {
+                            warn!("[ble] invalid time data length: {}", data.len());
+                        }
+                    });
                 }
                 match event.accept() {
                     Ok(reply) => reply.send().await,
