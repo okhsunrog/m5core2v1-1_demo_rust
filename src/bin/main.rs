@@ -22,9 +22,11 @@ use esp_hal::gpio::{Level, Output, OutputConfig};
 use esp_hal::i2c::master::{Config as I2cConfig, I2c};
 use esp_hal::spi::Mode as SpiMode;
 use esp_hal::spi::master::{Config as SpiConfig, Spi};
+use esp_hal::system::Stack as AppCoreStack;
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use esp_radio::ble::controller::BleConnector;
+use esp_rtos::embassy::Executor;
 use ft6336u_dd::Ft6336uAsync;
 use ina3221_dd::{ChannelId, INA3221_I2C_ADDR_GND, Ina3221Async};
 use log::info;
@@ -124,6 +126,11 @@ fn dispatch_touch_state(
             }
         }
     }
+}
+
+#[embassy_executor::task]
+async fn ble_task(controller: ExternalController<BleConnector<'static>, 1>) {
+    ble::run(controller).await;
 }
 
 #[embassy_executor::task]
@@ -309,13 +316,7 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
     let controller: ExternalController<_, 1> = ExternalController::new(connector);
     info!("BLE initialized!");
 
-    // --- Set up Slint platform ---
-    let slint_window = slint::platform::software_renderer::MinimalSoftwareWindow::new(
-        slint::platform::software_renderer::RepaintBufferType::ReusedBuffer,
-    );
-    slint::platform::set_platform(Box::new(EspPlatform::new(slint_window.clone()))).unwrap();
-
-    // --- I2C shared bus ---
+    // --- I2C shared bus (core 0) ---
     let i2c_config = I2cConfig::default().with_frequency(Rate::from_khz(400));
     let i2c = I2c::new(peripherals.I2C0, i2c_config)
         .unwrap()
@@ -327,14 +328,75 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
     let i2c_bus = I2C_BUS.init(Mutex::new(i2c));
 
     spawner.spawn(i2c_service_task(i2c_bus).unwrap());
+    spawner.spawn(ble_task(controller).unwrap());
+
+    // Move display + Slint render loop onto the second core so heavy frames
+    // (e.g. animation screens) can't starve BLE / touch on core 0.
+    static APP_CORE_STACK: StaticCell<AppCoreStack<32768>> = StaticCell::new();
+    let app_core_stack = APP_CORE_STACK.init(AppCoreStack::new());
+
+    let spi_periph = peripherals.SPI2;
+    let dma_spi2 = peripherals.DMA_SPI2;
+    let gpio_sck = peripherals.GPIO18;
+    let gpio_mosi = peripherals.GPIO23;
+    let gpio_miso = peripherals.GPIO38;
+    let gpio_cs = peripherals.GPIO5;
+    let gpio_dc = peripherals.GPIO15;
+
+    esp_rtos::start_second_core(
+        peripherals.CPU_CTRL,
+        sw_ints.software_interrupt1,
+        app_core_stack,
+        move || {
+            static EXECUTOR: StaticCell<Executor> = StaticCell::new();
+            let executor = EXECUTOR.init(Executor::new());
+            executor.run(|spawner| {
+                spawner.spawn(
+                    render_task(
+                        spi_periph, dma_spi2, gpio_sck, gpio_mosi, gpio_miso, gpio_cs, gpio_dc,
+                        psram_size,
+                    )
+                    .unwrap(),
+                );
+            });
+        },
+    );
+
+    // Core 0 just stays alive to keep its tasks running.
+    loop {
+        Timer::after(Duration::from_secs(3600)).await;
+    }
+}
+
+#[embassy_executor::task]
+async fn render_task(
+    spi_periph: esp_hal::peripherals::SPI2<'static>,
+    dma_spi2: esp_hal::peripherals::DMA_SPI2<'static>,
+    gpio_sck: esp_hal::peripherals::GPIO18<'static>,
+    gpio_mosi: esp_hal::peripherals::GPIO23<'static>,
+    gpio_miso: esp_hal::peripherals::GPIO38<'static>,
+    gpio_cs: esp_hal::peripherals::GPIO5<'static>,
+    gpio_dc: esp_hal::peripherals::GPIO15<'static>,
+    psram_size: usize,
+) {
+    info!("[core1] render task starting");
+
+    // --- Slint platform (per-core thread-local state) ---
+    let slint_window = slint::platform::software_renderer::MinimalSoftwareWindow::new(
+        slint::platform::software_renderer::RepaintBufferType::ReusedBuffer,
+    );
+    slint::platform::set_platform(Box::new(EspPlatform::new(slint_window.clone()))).unwrap();
+
+    // Wait for the I2C service on core 0 to finish probing peripherals before
+    // we set up the UI (we need the touch chip ID for a status string).
     let i2c_init = I2C_INIT_SIGNAL.wait().await;
     info!(
-        "I2C service ready; RTC clock valid: {}",
+        "[core1] I2C service ready; RTC clock valid: {}",
         i2c_init.rtc_clock_valid
     );
 
     // --- SPI display init ---
-    info!("Initializing SPI for display...");
+    info!("[core1] Initializing SPI for display...");
     let spi_config = SpiConfig::default()
         .with_frequency(Rate::from_mhz(SPI_FREQ_MHZ))
         .with_mode(SpiMode::_0);
@@ -343,16 +405,16 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
     let dma_rx_buf = DmaRxBuf::new(rx_descriptors, rx_buffer).unwrap();
     let dma_tx_buf = DmaTxBuf::new(tx_descriptors, tx_buffer).unwrap();
 
-    let spi = Spi::new(peripherals.SPI2, spi_config)
+    let spi = Spi::new(spi_periph, spi_config)
         .unwrap()
-        .with_sck(peripherals.GPIO18)
-        .with_mosi(peripherals.GPIO23)
-        .with_miso(peripherals.GPIO38)
-        .with_dma(peripherals.DMA_SPI2)
+        .with_sck(gpio_sck)
+        .with_mosi(gpio_mosi)
+        .with_miso(gpio_miso)
+        .with_dma(dma_spi2)
         .with_buffers(dma_rx_buf, dma_tx_buf);
 
-    let cs = Output::new(peripherals.GPIO5, Level::High, OutputConfig::default());
-    let dc = Output::new(peripherals.GPIO15, Level::Low, OutputConfig::default());
+    let cs = Output::new(gpio_cs, Level::High, OutputConfig::default());
+    let dc = Output::new(gpio_dc, Level::Low, OutputConfig::default());
 
     let spi_device = InitSpiDevice::new(spi, cs).unwrap();
     let mut init_buffer = [0_u8; 512];
@@ -387,13 +449,12 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
     )
     .unwrap();
 
-    info!("Display initialized!");
+    info!("[core1] Display initialized!");
 
     // --- Create Slint UI ---
     let ui = MainWindow::new().unwrap();
     slint_window.set_size(slint::PhysicalSize::new(WIDTH as u32, HEIGHT as u32));
 
-    // Set static system info
     ui.set_cpu_freq("240 MHz".into());
     ui.set_psram_size(format!("{} KB", psram_size / 1024).into());
     ui.set_display_res(format!("{}x{}", WIDTH, HEIGHT).into());
@@ -404,10 +465,7 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
     ui.set_dma_buf_size(format!("{} KB", DMA_BUF_SIZE / 1024).into());
     ui.set_backlight_value(0.5);
 
-    info!("Starting Slint main loop...");
-
-    // Run BLE stack and app loop concurrently
-    let ble_future = ble::run(controller);
+    info!("[core1] Starting Slint main loop...");
 
     let app_future = async {
         // Track touch state for Slint event dispatching
@@ -540,6 +598,5 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
         }
     }; // end app_future
 
-    embassy_futures::join::join(ble_future, app_future).await;
-    unreachable!()
+    app_future.await;
 }
