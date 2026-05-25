@@ -141,6 +141,7 @@ where
     CS: OutputPin,
     DC: OutputPin,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         spi: SpiDma<'d, Blocking>,
         mut cs: CS,
@@ -174,8 +175,8 @@ where
         // buffers from `dma_buffers!` are word-aligned, so this holds, but
         // make the invariant explicit.
         debug_assert!(
-            first_buf.as_slice().as_ptr() as usize % 2 == 0
-                && second_buf.as_slice().as_ptr() as usize % 2 == 0,
+            (first_buf.as_slice().as_ptr() as usize).is_multiple_of(2)
+                && (second_buf.as_slice().as_ptr() as usize).is_multiple_of(2),
             "DMA buffers must be 2-byte aligned for Rgb565PixelBE casting"
         );
 

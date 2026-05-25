@@ -546,12 +546,7 @@ async fn render_task(
                 ui.set_ina_ch3_current(sstr!("{:.1} mA", measurements.ina_current_ma[2]));
 
                 if let Some(dt) = measurements.rtc_time {
-                    ui.set_clock_text(sstr!(
-                        "{:02}:{:02}:{:02}",
-                        dt.hours,
-                        dt.minutes,
-                        dt.seconds
-                    ));
+                    ui.set_clock_text(sstr!("{:02}:{:02}:{:02}", dt.hours, dt.minutes, dt.seconds));
                 }
             }
 
@@ -561,7 +556,7 @@ async fn render_task(
             let new_bl = ui.get_backlight_value();
             if (new_bl - current_backlight).abs() > 0.01 {
                 current_backlight = new_bl;
-                let brightness = (current_backlight.max(0.0).min(1.0) * 100.0) as u8;
+                let brightness = (current_backlight.clamp(0.0, 1.0) * 100.0) as u8;
                 BACKLIGHT_SIGNAL.signal(brightness);
                 PERSIST_BACKLIGHT.signal(brightness);
             }

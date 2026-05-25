@@ -80,10 +80,7 @@ pub async fn task(flash: esp_hal::peripherals::FLASH<'static>) {
         .flatten()
         .map(|e| e.0);
 
-    info!(
-        "[cfg] loaded: backlight={:?}, ext5v={:?}",
-        backlight, ext5v
-    );
+    info!("[cfg] loaded: backlight={:?}, ext5v={:?}", backlight, ext5v);
     CONFIG_LOADED.signal(LoadedConfig { backlight, ext5v });
 
     // --- Writer loop ---
@@ -111,10 +108,7 @@ pub async fn task(flash: esp_hal::peripherals::FLASH<'static>) {
                 pending_backlight = Some(bl);
             }
             Either::First(Either::Second(ext)) => {
-                match storage
-                    .store_item(&mut buf, &KEY_EXT5V, &Ext5v(ext))
-                    .await
-                {
+                match storage.store_item(&mut buf, &KEY_EXT5V, &Ext5v(ext)).await {
                     Ok(()) => info!("[cfg] ext5v persisted: {}", ext),
                     Err(e) => warn!("[cfg] failed to store ext5v: {:?}", e),
                 }
