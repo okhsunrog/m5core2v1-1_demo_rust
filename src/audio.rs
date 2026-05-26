@@ -175,9 +175,10 @@ fn stop_dma_tx() {
     r.out_link().modify(|_, w| w.outlink_stop().set_bit());
 }
 
-/// Wait for `out_eof` — fires each time DMA finishes a descriptor with
-/// eof=1. Returns the address of the completed descriptor.
-fn wait_eof() -> u32 {
+/// Poll for `out_eof` with async yield — fires each time DMA finishes a
+/// descriptor with eof=1. Yields to the embassy executor between polls
+/// so other Core 0 tasks (touch, BLE, I2C) stay responsive.
+async fn wait_eof() -> u32 {
     let r = regs();
     loop {
         if r.int_raw().read().out_eof().bit_is_set() {
@@ -185,6 +186,7 @@ fn wait_eof() -> u32 {
             r.int_clr().write(|w| w.out_eof().clear_bit_by_one());
             return addr;
         }
+        embassy_futures::yield_now().await;
     }
 }
 
@@ -232,14 +234,13 @@ pub async fn task(
             Sfx::Ping => SOUND_PING,
         };
 
-        play_clip(adpcm);
+        play_clip(adpcm).await;
     }
 }
 
-fn play_clip(adpcm_data: &'static [u8]) {
+async fn play_clip(adpcm_data: &'static [u8]) {
     let mut source = Source::new(adpcm_data);
 
-    // Pre-fill all descriptor buffers
     for i in 0..NUM_DESC {
         #[allow(clippy::deref_addrof)]
         let buf = unsafe { &mut (*(&raw mut BUFS))[i].0 };
@@ -252,7 +253,7 @@ fn play_clip(adpcm_data: &'static [u8]) {
 
     let mut refills = 0u32;
     while !source.finished() {
-        let eof_addr = wait_eof();
+        let eof_addr = wait_eof().await;
         let idx = desc_index(eof_addr);
         let buf = unsafe { &mut BUFS[idx].0 };
         source.fill_stereo_buf(buf);
@@ -260,7 +261,7 @@ fn play_clip(adpcm_data: &'static [u8]) {
     }
 
     for _ in 0..NUM_DESC {
-        wait_eof();
+        wait_eof().await;
     }
 
     stop_dma_tx();
