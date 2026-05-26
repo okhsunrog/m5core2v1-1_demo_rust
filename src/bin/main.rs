@@ -38,6 +38,7 @@ use slint::PhysicalPosition;
 use slint::platform::{PointerEventButton, WindowEvent};
 use static_cell::StaticCell;
 
+use m5core2v1_1_esp_hal_demo::audio;
 use m5core2v1_1_esp_hal_demo::ble;
 use m5core2v1_1_esp_hal_demo::config_store::{
     self, CONFIG_LOADED, PERSIST_BACKLIGHT, PERSIST_EXT5V,
@@ -344,6 +345,13 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
     spawner.spawn(i2c_service_task(i2c_bus).unwrap());
     spawner.spawn(ble_task(controller).unwrap());
     spawner.spawn(config_store::task(peripherals.FLASH).unwrap());
+    spawner.spawn(audio::task(
+        peripherals.I2S1,
+        peripherals.DMA_I2S1,
+        peripherals.GPIO12,
+        peripherals.GPIO0,
+        peripherals.GPIO2,
+    ).unwrap());
 
     // Move display + Slint render loop onto the second core so heavy frames
     // (e.g. animation screens) can't starve BLE / touch on core 0.
@@ -491,6 +499,14 @@ async fn render_task(
     ui.set_dma_buf_size(format!("{} KB", DMA_BUF_SIZE / 1024).into());
 
     ui.on_power_off(|| POWER_OFF_SIGNAL.signal(()));
+    ui.on_play_sound(|idx| {
+        let sfx = match idx {
+            0 => audio::Sfx::Chime,
+            1 => audio::Sfx::Info,
+            _ => audio::Sfx::Ping,
+        };
+        audio::PLAY_SIGNAL.signal(sfx);
+    });
 
     // Apply persisted settings if present, otherwise sensible defaults.
     let loaded = CONFIG_LOADED.wait().await;

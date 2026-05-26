@@ -68,7 +68,6 @@ export component MainWindow inherits Window {
     in property <string> fps-text: "?";
     in property <string> clock-text: "?";
     in-out property <int> active-tab: 0;
-    in-out property <int> tap-count: 0;
     in-out property <float> backlight-value: 0.5;
     in-out property <bool> ext5v-enabled: false;
 
@@ -87,6 +86,7 @@ export component MainWindow inherits Window {
 
     // Triggered when the user taps the Power Off button on the System tab.
     callback power-off();
+    callback play-sound(int);
 
     in property <string> spi-freq: "?";
     in property <string> i2c-freq: "?";
@@ -243,25 +243,62 @@ export component MainWindow inherits Window {
 
             Rectangle { height: 1px; background: #222244; }
 
-            // Tap counter
-            Text { text: "Tap Counter: " + root.tap-count; color: #aaaaaa; font-size: 13px; }
+            Text { text: "Sound"; color: #aaaaaa; font-size: 13px; }
 
             HorizontalLayout {
-                spacing: 8px;
+                spacing: 6px;
 
-                tap-btn := TouchArea {
+                chime-btn := TouchArea {
                     horizontal-stretch: 1;
-                    clicked => { root.tap-count += 1; }
+                    clicked => { root.play-sound(0); }
                     Rectangle {
-                        background: tap-btn.pressed ? #445566 : #2a2a4e;
+                        background: chime-btn.pressed ? #445566 : #2a2a4e;
                         border-radius: 8px;
                         border-width: 1px;
                         border-color: #444488;
                         height: 40px;
                         Text {
-                            text: "Tap!";
-                            color: tap-btn.pressed ? #00ff88 : #888888;
-                            font-size: 15px;
+                            text: "Chime";
+                            color: chime-btn.pressed ? #ff8800 : #888888;
+                            font-size: 14px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                info-btn := TouchArea {
+                    horizontal-stretch: 1;
+                    clicked => { root.play-sound(1); }
+                    Rectangle {
+                        background: info-btn.pressed ? #445566 : #2a2a4e;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: #444488;
+                        height: 40px;
+                        Text {
+                            text: "Info";
+                            color: info-btn.pressed ? #ff8800 : #888888;
+                            font-size: 14px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                ping-btn := TouchArea {
+                    horizontal-stretch: 1;
+                    clicked => { root.play-sound(2); }
+                    Rectangle {
+                        background: ping-btn.pressed ? #445566 : #2a2a4e;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: #444488;
+                        height: 40px;
+                        Text {
+                            text: "Ping";
+                            color: ping-btn.pressed ? #ff8800 : #888888;
+                            font-size: 14px;
                             horizontal-alignment: center;
                             vertical-alignment: center;
                         }
