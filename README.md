@@ -24,6 +24,10 @@ A feature-rich demo application for the [M5Stack Core2 v1.1](https://docs.m5stac
 - **AXP2101 PMIC** — battery monitoring, voltage rails, backlight control
 - **INA3221** 3-channel power monitor (battery, USB, system rail)
 - **BM8563 RTC** with clock display
+- **I2S audio** via NS4168 speaker amplifier — IMA ADPCM decoding with
+  DMA-driven circular buffer playback. Bypasses esp-hal's broken I2S DMA
+  layer on ESP32 with a direct PAC implementation (see
+  [ESP32_I2S_WORKAROUNDS.md](ESP32_I2S_WORKAROUNDS.md)).
 - **BLE GATT server** (trouble-host) for setting RTC time wirelessly
 - **Persistent settings** — backlight brightness and Ext 5V state stored
   in flash via [`sequential-storage`](https://crates.io/crates/sequential-storage)
@@ -41,6 +45,7 @@ A feature-rich demo application for the [M5Stack Core2 v1.1](https://docs.m5stac
 | PMIC | AXP2101 | I2C (0x34) |
 | Power Monitor | INA3221 | I2C (0x40) |
 | RTC | BM8563 (PCF8563 compatible) | I2C (0x51) |
+| Speaker | NS4168 (class-D amp) | I2S1 (BCLK=12, LRCK=0, DOUT=2) |
 | Radio | ESP32 BLE | — |
 
 ## Memory Layout
@@ -82,6 +87,7 @@ This connects via BLE and writes the current system time to the RTC.
 src/
   bin/main.rs        — Entry point, peripheral init, core-0 tasks + core-1 spawn
   lib.rs             — Library root
+  audio.rs           — I2S audio with PAC-driven circular DMA and IMA ADPCM
   ble.rs             — BLE GATT server (trouble-host)
   config_store.rs    — Persistent settings (backlight, Ext 5V) in flash via
                        sequential-storage + postcard, with debounced writes
@@ -91,6 +97,8 @@ src/
   slint_platform.rs  — Slint platform backend for ESP32
 ui/
   main.slint         — Slint UI definition (tabs, widgets, animations)
+sounds/
+  *.adpcm            — IMA ADPCM notification sounds (8 kHz, 4:1 compression)
 scripts/
   set_time.py        — Python BLE time sync script (bleak)
 ```
@@ -106,6 +114,8 @@ Driver crates from crates.io:
 - [ft6336u-dd](https://crates.io/crates/ft6336u-dd) — FT6336U touch driver
 - [ina3221-dd](https://crates.io/crates/ina3221-dd) — INA3221 power monitor driver
 - [pcf8563-dd](https://crates.io/crates/pcf8563-dd) — PCF8563/BM8563 RTC driver
+- [audio-codec-algorithms](https://crates.io/crates/audio-codec-algorithms) —
+  IMA ADPCM decoder (no_std, no alloc, 3 bytes state)
 - [esp-storage](https://crates.io/crates/esp-storage) +
   [sequential-storage](https://crates.io/crates/sequential-storage) — wear-leveled
   flash KV storage for persisted settings (postcard-serialized)

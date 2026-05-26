@@ -241,6 +241,7 @@ fn play_clip(adpcm_data: &'static [u8]) {
 
     // Pre-fill all descriptor buffers
     for i in 0..NUM_DESC {
+        #[allow(clippy::deref_addrof)]
         let buf = unsafe { &mut (*(&raw mut BUFS))[i].0 };
         source.fill_stereo_buf(buf);
     }
