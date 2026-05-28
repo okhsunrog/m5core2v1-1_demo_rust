@@ -71,6 +71,30 @@ Build and flash:
 cargo run --release
 ```
 
+## Audio Encoding
+
+Sound clips in `sounds/*.adpcm` are raw continuous IMA ADPCM nibble streams (no
+WAV container, no block headers — see [src/audio.rs](src/audio.rs)). To add or
+re-encode a clip:
+
+```bash
+scripts/encode_adpcm.rs input.ogg sounds/myname.adpcm
+# override sample rate (default 44100):
+scripts/encode_adpcm.rs input.wav sounds/myname.adpcm --rate 22050
+```
+
+Requirements:
+
+- `ffmpeg` on PATH (decodes any audio format to raw PCM)
+- `rust-script` — install with `cargo install rust-script`
+
+The script pipes ffmpeg's PCM output through
+[`audio-codec-algorithms`](https://crates.io/crates/audio-codec-algorithms),
+the same crate the firmware uses to decode at runtime, so round-trips are
+guaranteed byte-correct. Compression is 4:1 vs 16-bit PCM. Note that
+`sox -e ima-adpcm` and `ffmpeg -acodec adpcm_ima_wav` produce **block-formatted**
+ADPCM that is not playable by this decoder — use the script.
+
 ## BLE Time Sync
 
 The device advertises as **"M5Core2"** with a writable GATT characteristic for setting the RTC. A Python script is included:
@@ -98,8 +122,9 @@ src/
 ui/
   main.slint         — Slint UI definition (tabs, widgets, animations)
 sounds/
-  *.adpcm            — IMA ADPCM notification sounds (8 kHz, 4:1 compression)
+  *.adpcm            — IMA ADPCM notification sounds (44.1 kHz mono, 4:1)
 scripts/
+  encode_adpcm.rs    — rust-script: encode any audio to raw IMA ADPCM (ffmpeg)
   set_time.py        — Python BLE time sync script (bleak)
 ```
 
