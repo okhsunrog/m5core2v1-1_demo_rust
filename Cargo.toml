@@ -96,25 +96,26 @@ opt-level = 0
 [build-dependencies]
 slint-build = { git = "https://github.com/okhsunrog/slint", branch = "rgb565-be" }
 
-# esp-hal fork: #5603 (DmaBuffer I2S API) + reset_tx/reset_rx read-back barrier.
-# Temporary until both PRs (#5603, #5609) land — then drop this whole block and
-# use crates.io. All monorepo crates must be patched together (shared internal APIs).
+# LOCAL DEV ONLY (branch local-esp-hal-test): patch esp-hal to the local clone
+# at ~/code/rust/esp-hal so changes there rebuild instantly. main uses the git
+# fork branch instead. Keep the local clone on the i2s-dma-reset-fix branch.
+# All monorepo crates must be patched together (shared internal APIs).
 [patch.crates-io]
-esp-hal                  = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
-esp-hal-procmacros       = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
-esp-alloc                = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
-esp-backtrace            = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
-esp-bootloader-esp-idf   = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
-esp-config               = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
-esp-metadata-generated   = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
-esp-phy                  = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
-esp-println              = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
-esp-radio                = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
-esp-radio-rtos-driver    = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
-esp-rom-sys              = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
-esp-rtos                 = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
-esp-storage              = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
-esp-sync                 = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
-xtensa-lx                = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
-xtensa-lx-rt             = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
-xtensa-lx-rt-proc-macros = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
+esp-hal                  = { path = "/home/okhsunrog/code/rust/esp-hal/esp-hal" }
+esp-hal-procmacros       = { path = "/home/okhsunrog/code/rust/esp-hal/esp-hal-procmacros" }
+esp-alloc                = { path = "/home/okhsunrog/code/rust/esp-hal/esp-alloc" }
+esp-backtrace            = { path = "/home/okhsunrog/code/rust/esp-hal/esp-backtrace" }
+esp-bootloader-esp-idf   = { path = "/home/okhsunrog/code/rust/esp-hal/esp-bootloader-esp-idf" }
+esp-config               = { path = "/home/okhsunrog/code/rust/esp-hal/esp-config" }
+esp-metadata-generated   = { path = "/home/okhsunrog/code/rust/esp-hal/esp-metadata-generated" }
+esp-phy                  = { path = "/home/okhsunrog/code/rust/esp-hal/esp-phy" }
+esp-println              = { path = "/home/okhsunrog/code/rust/esp-hal/esp-println" }
+esp-radio                = { path = "/home/okhsunrog/code/rust/esp-hal/esp-radio" }
+esp-radio-rtos-driver    = { path = "/home/okhsunrog/code/rust/esp-hal/esp-radio-rtos-driver" }
+esp-rom-sys              = { path = "/home/okhsunrog/code/rust/esp-hal/esp-rom-sys" }
+esp-rtos                 = { path = "/home/okhsunrog/code/rust/esp-hal/esp-rtos" }
+esp-storage              = { path = "/home/okhsunrog/code/rust/esp-hal/esp-storage" }
+esp-sync                 = { path = "/home/okhsunrog/code/rust/esp-hal/esp-sync" }
+xtensa-lx                = { path = "/home/okhsunrog/code/rust/esp-hal/xtensa-lx" }
+xtensa-lx-rt             = { path = "/home/okhsunrog/code/rust/esp-hal/xtensa-lx-rt" }
+xtensa-lx-rt-proc-macros = { path = "/home/okhsunrog/code/rust/esp-hal/xtensa-lx-rt-proc-macros" }
