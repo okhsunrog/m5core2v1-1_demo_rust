@@ -9,7 +9,7 @@ name = "m5core2v1-1_esp-hal_demo"
 path = "./src/bin/main.rs"
 
 [dependencies]
-esp-hal = { version = "1.1.1", features = ["esp32", "log-04", "unstable"] }
+esp-hal = { version = "1.1.0", features = ["esp32", "log-04", "unstable"] }
 
 esp-rtos = { version = "0.3.0", features = [
   "embassy",
@@ -89,5 +89,32 @@ overflow-checks  = false
 [profile.release.package.esp-storage]
 opt-level = 3
 
+# xtensa-lx-rt inline asm hits LLVM bug with opt-level=s (only needed when using local esp-hal)
+[profile.dev.package.xtensa-lx-rt]
+opt-level = 0
+
 [build-dependencies]
 slint-build = { git = "https://github.com/okhsunrog/slint", branch = "rgb565-be" }
+
+# esp-hal fork: #5603 (DmaBuffer I2S API) + reset_tx/reset_rx read-back barrier.
+# Temporary until both PRs (#5603, #5609) land — then drop this whole block and
+# use crates.io. All monorepo crates must be patched together (shared internal APIs).
+[patch.crates-io]
+esp-hal                  = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
+esp-hal-procmacros       = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
+esp-alloc                = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
+esp-backtrace            = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
+esp-bootloader-esp-idf   = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
+esp-config               = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
+esp-metadata-generated   = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
+esp-phy                  = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
+esp-println              = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
+esp-radio                = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
+esp-radio-rtos-driver    = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
+esp-rom-sys              = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
+esp-rtos                 = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
+esp-storage              = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
+esp-sync                 = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
+xtensa-lx                = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
+xtensa-lx-rt             = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }
+xtensa-lx-rt-proc-macros = { git = "https://github.com/okhsunrog/esp-hal", branch = "i2s-dma-reset-fix" }

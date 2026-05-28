@@ -470,7 +470,7 @@ async fn render_task(
     let (di, _, _) = display.release();
     let (spi_device, dc) = di.release();
     let (spi, cs) = spi_device.release();
-    let (spi, _dma_rx_buf, first_tx_buf) = spi.split();
+    let first_tx_buf = esp_hal::dma_tx_buffer!(DMA_BUF_SIZE).unwrap();
     let second_tx_buf = esp_hal::dma_tx_buffer!(DMA_BUF_SIZE).unwrap();
     let mut display = DmaLineDisplay::new(
         spi,

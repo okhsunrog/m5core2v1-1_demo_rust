@@ -24,10 +24,9 @@ A feature-rich demo application for the [M5Stack Core2 v1.1](https://docs.m5stac
 - **AXP2101 PMIC** — battery monitoring, voltage rails, backlight control
 - **INA3221** 3-channel power monitor (battery, USB, system rail)
 - **BM8563 RTC** with clock display
-- **I2S audio** via NS4168 speaker amplifier — IMA ADPCM decoding with
-  DMA-driven circular buffer playback. Bypasses esp-hal's broken I2S DMA
-  layer on ESP32 with a direct PAC implementation (see
-  [ESP32_I2S_WORKAROUNDS.md](ESP32_I2S_WORKAROUNDS.md)).
+- **I2S audio** via NS4168 speaker amplifier — IMA ADPCM decoded on the fly
+  into esp-hal's async circular DMA stream (`DmaTxStreamBuf`), gap-free with
+  no full PCM buffer in RAM.
 - **BLE GATT server** (trouble-host) for setting RTC time wirelessly
 - **Persistent settings** — backlight brightness and Ext 5V state stored
   in flash via [`sequential-storage`](https://crates.io/crates/sequential-storage)
@@ -111,7 +110,7 @@ This connects via BLE and writes the current system time to the RTC.
 src/
   bin/main.rs        — Entry point, peripheral init, core-0 tasks + core-1 spawn
   lib.rs             — Library root
-  audio.rs           — I2S audio with PAC-driven circular DMA and IMA ADPCM
+  audio.rs           — I2S audio via esp-hal async DMA streaming + IMA ADPCM
   ble.rs             — BLE GATT server (trouble-host)
   config_store.rs    — Persistent settings (backlight, Ext 5V) in flash via
                        sequential-storage + postcard, with debounced writes

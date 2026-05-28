@@ -239,7 +239,7 @@ where
 
         for chunk in bytes.chunks(tx_buf.capacity()) {
             tx_buf.fill(chunk);
-            match spi.write(chunk.len(), tx_buf) {
+            match spi.write_buffer(chunk.len(), tx_buf) {
                 Ok(transfer) => {
                     let (returned_spi, returned_buf) = transfer.wait();
                     spi = returned_spi;
@@ -327,7 +327,7 @@ where
         let byte_len = tile.byte_len();
         render_buf.set_length(byte_len);
 
-        match spi.write(byte_len, render_buf) {
+        match spi.write_buffer(byte_len, render_buf) {
             Ok(transfer) => {
                 self.pending = Some(transfer);
                 self.render_buf = self.spare_buf.take();

@@ -832,7 +832,7 @@ checksum = "0b396d1f76d455557e1218ec8066ae14bba60b4b36ecd55577ba979f5db7ecaa"
 [[package]]
 name = "const-field-offset"
 version = "0.2.0"
-source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#e11b75f53c5bfc9408ae75216697ea1959a14f84"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#d7a6a2afe6ff3a30c5fd8936e296b15ebaacce82"
 dependencies = [
  "const-field-offset-macro",
  "field-offset",
@@ -841,7 +841,7 @@ dependencies = [
 [[package]]
 name = "const-field-offset-macro"
 version = "0.2.0"
-source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#e11b75f53c5bfc9408ae75216697ea1959a14f84"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#d7a6a2afe6ff3a30c5fd8936e296b15ebaacce82"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1437,6 +1437,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "embassy-net-driver"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "524eb3c489760508f71360112bca70f6e53173e6fe48fc5f0efd0f5ab217751d"
+
+[[package]]
 name = "embassy-sync"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1705,8 +1711,7 @@ checksum = "dea2df4cf52843e0452895c455a1a2cfbb842a1e7329671acf418fdc53ed4c59"
 [[package]]
 name = "esp-alloc"
 version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46ced060d4085858283df950b80a4da2348e1707d7d07b1e966308582dae79f5"
+source = "git+https://github.com/okhsunrog/esp-hal?branch=i2s-dma-reset-fix#ac046e17eaea3c7e4bf4c9f2b63d27ded5aa328f"
 dependencies = [
  "allocator-api2 0.3.1",
  "cfg-if",
@@ -1721,8 +1726,7 @@ dependencies = [
 [[package]]
 name = "esp-backtrace"
 version = "0.19.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37950e24b2dfd98f1581102d1798281d4d9547af881e6bffc2c2b534c026ec8f"
+source = "git+https://github.com/okhsunrog/esp-hal?branch=i2s-dma-reset-fix#ac046e17eaea3c7e4bf4c9f2b63d27ded5aa328f"
 dependencies = [
  "cfg-if",
  "document-features",
@@ -1738,8 +1742,7 @@ dependencies = [
 [[package]]
 name = "esp-bootloader-esp-idf"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35ffc117c3a9859835d89d0e90f5ee9886ce2264a71a849a7a22ab5308f6653c"
+source = "git+https://github.com/okhsunrog/esp-hal?branch=i2s-dma-reset-fix#ac046e17eaea3c7e4bf4c9f2b63d27ded5aa328f"
 dependencies = [
  "cfg-if",
  "document-features",
@@ -1756,8 +1759,7 @@ dependencies = [
 [[package]]
 name = "esp-config"
 version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d9b92fd9cfb0b4f8f1b6219b9763269a335571e307b014903b8201619374b80"
+source = "git+https://github.com/okhsunrog/esp-hal?branch=i2s-dma-reset-fix#ac046e17eaea3c7e4bf4c9f2b63d27ded5aa328f"
 dependencies = [
  "document-features",
  "esp-metadata-generated",
@@ -1768,9 +1770,8 @@ dependencies = [
 
 [[package]]
 name = "esp-hal"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2bfcf2a0842903717f4663f6a08512c32b0f6b2d7fb7db3c8a6895d2e6d49f72"
+version = "1.1.0"
+source = "git+https://github.com/okhsunrog/esp-hal?branch=i2s-dma-reset-fix#ac046e17eaea3c7e4bf4c9f2b63d27ded5aa328f"
 dependencies = [
  "bitfield",
  "bitflags 2.11.1",
@@ -1782,6 +1783,7 @@ dependencies = [
  "document-features",
  "embassy-embedded-hal",
  "embassy-futures",
+ "embassy-net-driver",
  "embassy-sync 0.8.0",
  "embedded-can",
  "embedded-hal 1.0.0",
@@ -1797,11 +1799,12 @@ dependencies = [
  "esp-riscv-rt",
  "esp-rom-sys",
  "esp-sync",
- "esp32",
+ "esp32 0.40.2 (git+https://github.com/esp-rs/esp-pacs?rev=0f4c316adbdbddb2479f50a5b931776b9655b23f)",
  "esp32c2",
  "esp32c3",
  "esp32c6",
  "esp32h2",
+ "esp32p4",
  "esp32s2",
  "esp32s3",
  "fugit",
@@ -1825,8 +1828,7 @@ dependencies = [
 [[package]]
 name = "esp-hal-procmacros"
 version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6aebfabb2c21bec45e575e4f6cb6bb7aa8e1b33e7ac45b5dffa0f9d33ff59105"
+source = "git+https://github.com/okhsunrog/esp-hal?branch=i2s-dma-reset-fix#ac046e17eaea3c7e4bf4c9f2b63d27ded5aa328f"
 dependencies = [
  "document-features",
  "proc-macro-crate",
@@ -1839,14 +1841,12 @@ dependencies = [
 [[package]]
 name = "esp-metadata-generated"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42c2ee95b945a4780796e4359e72c033aed3b45073880e8029458f538532db8a"
+source = "git+https://github.com/okhsunrog/esp-hal?branch=i2s-dma-reset-fix#ac046e17eaea3c7e4bf4c9f2b63d27ded5aa328f"
 
 [[package]]
 name = "esp-phy"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7c0a29815cd105ae1a02f3d0c6e7aafda9504a41effae17fac4c3f827719228"
+source = "git+https://github.com/okhsunrog/esp-hal?branch=i2s-dma-reset-fix#ac046e17eaea3c7e4bf4c9f2b63d27ded5aa328f"
 dependencies = [
  "cfg-if",
  "document-features",
@@ -1856,15 +1856,14 @@ dependencies = [
  "esp-metadata-generated",
  "esp-sync",
  "esp-wifi-sys-esp32",
- "esp32",
+ "esp32 0.40.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log",
 ]
 
 [[package]]
 name = "esp-println"
 version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42dee1e9ac7c3539bf6464db1707b0edd7557168f98278cf3c84fe70e63c6ce6"
+source = "git+https://github.com/okhsunrog/esp-hal?branch=i2s-dma-reset-fix#ac046e17eaea3c7e4bf4c9f2b63d27ded5aa328f"
 dependencies = [
  "document-features",
  "esp-metadata-generated",
@@ -1876,8 +1875,7 @@ dependencies = [
 [[package]]
 name = "esp-radio"
 version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23fbff98b06a96b6ce3791ecec5c668524052a068e23aacd23afe17ddba844ce"
+source = "git+https://github.com/okhsunrog/esp-hal?branch=i2s-dma-reset-fix#ac046e17eaea3c7e4bf4c9f2b63d27ded5aa328f"
 dependencies = [
  "allocator-api2 0.3.1",
  "bt-hci",
@@ -1896,6 +1894,7 @@ dependencies = [
  "esp-metadata-generated",
  "esp-phy",
  "esp-radio-rtos-driver",
+ "esp-rom-sys",
  "esp-sync",
  "esp-wifi-sys-esp32",
  "esp-wifi-sys-esp32c2",
@@ -1904,7 +1903,7 @@ dependencies = [
  "esp-wifi-sys-esp32h2",
  "esp-wifi-sys-esp32s2",
  "esp-wifi-sys-esp32s3",
- "esp32",
+ "esp32 0.40.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapless 0.9.3",
  "instability",
  "log",
@@ -1918,8 +1917,7 @@ dependencies = [
 [[package]]
 name = "esp-radio-rtos-driver"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bd75cd9073a90ffaa53db0bf17df7dc14164f2407a6ff36c725d2d1f78ff494"
+source = "git+https://github.com/okhsunrog/esp-hal?branch=i2s-dma-reset-fix#ac046e17eaea3c7e4bf4c9f2b63d27ded5aa328f"
 dependencies = [
  "cfg-if",
  "esp-sync",
@@ -1929,8 +1927,7 @@ dependencies = [
 [[package]]
 name = "esp-riscv-rt"
 version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66a814ae91452de56a5e74f69aebfee40579511756837d3774a56fd24cf0ab79"
+source = "git+https://github.com/okhsunrog/esp-hal?branch=i2s-dma-reset-fix#ac046e17eaea3c7e4bf4c9f2b63d27ded5aa328f"
 dependencies = [
  "document-features",
  "riscv",
@@ -1940,20 +1937,18 @@ dependencies = [
 [[package]]
 name = "esp-rom-sys"
 version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eae852ccb08971155023d1371c96d5490cbc26860f06aee2d629ef73f1a890c3"
+source = "git+https://github.com/okhsunrog/esp-hal?branch=i2s-dma-reset-fix#ac046e17eaea3c7e4bf4c9f2b63d27ded5aa328f"
 dependencies = [
  "cfg-if",
  "document-features",
  "esp-metadata-generated",
- "esp32",
+ "esp32 0.40.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "esp-rtos"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "551f90766e1527edaa0c91e8d559e9e2a60397b545e93357ac61fb31845e5712"
+source = "git+https://github.com/okhsunrog/esp-hal?branch=i2s-dma-reset-fix#ac046e17eaea3c7e4bf4c9f2b63d27ded5aa328f"
 dependencies = [
  "allocator-api2 0.3.1",
  "cfg-if",
@@ -1979,8 +1974,7 @@ dependencies = [
 [[package]]
 name = "esp-storage"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4cf2b3f00c9f94b27c62a4f5296b19470c3a083c687c8146e554a459f9bee596"
+source = "git+https://github.com/okhsunrog/esp-hal?branch=i2s-dma-reset-fix#ac046e17eaea3c7e4bf4c9f2b63d27ded5aa328f"
 dependencies = [
  "document-features",
  "embedded-storage",
@@ -1994,8 +1988,7 @@ dependencies = [
 [[package]]
 name = "esp-sync"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4736bfbbb9e3f6353344e14fc61b6d18d3b877c3286914cf8c0a037be0ed224"
+source = "git+https://github.com/okhsunrog/esp-hal?branch=i2s-dma-reset-fix#ac046e17eaea3c7e4bf4c9f2b63d27ded5aa328f"
 dependencies = [
  "cfg-if",
  "document-features",
@@ -2080,6 +2073,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "esp32"
+version = "0.40.2"
+source = "git+https://github.com/esp-rs/esp-pacs?rev=0f4c316adbdbddb2479f50a5b931776b9655b23f#0f4c316adbdbddb2479f50a5b931776b9655b23f"
+dependencies = [
+ "vcell",
+]
+
+[[package]]
 name = "esp32c2"
 version = "0.29.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2116,10 +2117,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "esp32p4"
+version = "0.2.0"
+source = "git+https://github.com/esp-rs/esp-pacs?rev=0f4c316adbdbddb2479f50a5b931776b9655b23f#0f4c316adbdbddb2479f50a5b931776b9655b23f"
+dependencies = [
+ "critical-section",
+ "vcell",
+]
+
+[[package]]
 name = "esp32s2"
 version = "0.31.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0ad6f21cdf6ec7b06b7f7e0fbe51f0d975fd6a5fa67c3f8a5a910d3981af531"
+source = "git+https://github.com/esp-rs/esp-pacs?rev=0f4c316adbdbddb2479f50a5b931776b9655b23f#0f4c316adbdbddb2479f50a5b931776b9655b23f"
 dependencies = [
  "vcell",
 ]
@@ -2127,8 +2136,7 @@ dependencies = [
 [[package]]
 name = "esp32s3"
 version = "0.35.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b4b8c4e4d9f187553ecdb7173edec7b2deb2beea106eedefecdb1654b8ee25a"
+source = "git+https://github.com/esp-rs/esp-pacs?rev=0f4c316adbdbddb2479f50a5b931776b9655b23f#0f4c316adbdbddb2479f50a5b931776b9655b23f"
 dependencies = [
  "vcell",
 ]
@@ -2796,7 +2804,7 @@ checksum = "48ce8546b993eaf241d69ded33b1be6d205dd9857ec879d9d18bd05d3676e144"
 [[package]]
 name = "i-slint-backend-linuxkms"
 version = "1.17.0"
-source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#e11b75f53c5bfc9408ae75216697ea1959a14f84"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#d7a6a2afe6ff3a30c5fd8936e296b15ebaacce82"
 dependencies = [
  "bytemuck",
  "calloop 0.14.4",
@@ -2814,7 +2822,7 @@ dependencies = [
 [[package]]
 name = "i-slint-backend-selector"
 version = "1.17.0"
-source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#e11b75f53c5bfc9408ae75216697ea1959a14f84"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#d7a6a2afe6ff3a30c5fd8936e296b15ebaacce82"
 dependencies = [
  "cfg-if",
  "i-slint-backend-linuxkms",
@@ -2827,7 +2835,7 @@ dependencies = [
 [[package]]
 name = "i-slint-backend-winit"
 version = "1.17.0"
-source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#e11b75f53c5bfc9408ae75216697ea1959a14f84"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#d7a6a2afe6ff3a30c5fd8936e296b15ebaacce82"
 dependencies = [
  "block2 0.6.2",
  "bytemuck",
@@ -2868,7 +2876,7 @@ dependencies = [
 [[package]]
 name = "i-slint-common"
 version = "1.17.0"
-source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#e11b75f53c5bfc9408ae75216697ea1959a14f84"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#d7a6a2afe6ff3a30c5fd8936e296b15ebaacce82"
 dependencies = [
  "derive_more",
  "fontique",
@@ -2883,7 +2891,7 @@ dependencies = [
 [[package]]
 name = "i-slint-compiler"
 version = "1.17.0"
-source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#e11b75f53c5bfc9408ae75216697ea1959a14f84"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#d7a6a2afe6ff3a30c5fd8936e296b15ebaacce82"
 dependencies = [
  "annotate-snippets",
  "by_address",
@@ -2915,7 +2923,7 @@ dependencies = [
 [[package]]
 name = "i-slint-core"
 version = "1.17.0"
-source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#e11b75f53c5bfc9408ae75216697ea1959a14f84"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#d7a6a2afe6ff3a30c5fd8936e296b15ebaacce82"
 dependencies = [
  "async-channel",
  "auto_enums",
@@ -2967,7 +2975,7 @@ dependencies = [
 [[package]]
 name = "i-slint-core-macros"
 version = "1.17.0"
-source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#e11b75f53c5bfc9408ae75216697ea1959a14f84"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#d7a6a2afe6ff3a30c5fd8936e296b15ebaacce82"
 dependencies = [
  "quote",
  "serde_json",
@@ -2977,7 +2985,7 @@ dependencies = [
 [[package]]
 name = "i-slint-renderer-skia"
 version = "1.17.0"
-source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#e11b75f53c5bfc9408ae75216697ea1959a14f84"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#d7a6a2afe6ff3a30c5fd8936e296b15ebaacce82"
 dependencies = [
  "bytemuck",
  "cfg-if",
@@ -3013,7 +3021,7 @@ dependencies = [
 [[package]]
 name = "i-slint-renderer-software"
 version = "1.17.0"
-source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#e11b75f53c5bfc9408ae75216697ea1959a14f84"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#d7a6a2afe6ff3a30c5fd8936e296b15ebaacce82"
 dependencies = [
  "bytemuck",
  "clru",
@@ -3425,9 +3433,9 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "jiff"
-version = "0.2.24"
+version = "0.2.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f00b5dbd620d61dfdcb6007c9c1f6054ebd75319f163d886a9055cec1155073d"
+checksum = "392c70591e8749fe235ddaf513e6f58b26bce3dcc16524cecc8936f75afa161e"
 dependencies = [
  "jiff-static",
  "log",
@@ -3438,9 +3446,9 @@ dependencies = [
 
 [[package]]
 name = "jiff-static"
-version = "0.2.24"
+version = "0.2.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e000de030ff8022ea1da3f466fbb0f3a809f5e51ed31f6dd931c35181ad8e6d7"
+checksum = "47b605b0c050d845fc355bb11eb3f9a8deddc218ea60c76e61aa1f2adfb2c96a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3714,9 +3722,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.29"
+version = "0.4.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
+checksum = "616ec5685824bcc94416c6d4a7a446eea774a31efd7062c8480ba6fd06d7a6e5"
 
 [[package]]
 name = "loom"
@@ -3805,7 +3813,7 @@ dependencies = [
  "esp-radio",
  "esp-rtos",
  "esp-storage",
- "esp32",
+ "esp32 0.40.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ft6336u-dd",
  "heapless 0.9.3",
  "ina3221-dd",
@@ -5578,7 +5586,7 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 [[package]]
 name = "slint"
 version = "1.17.0"
-source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#e11b75f53c5bfc9408ae75216697ea1959a14f84"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#d7a6a2afe6ff3a30c5fd8936e296b15ebaacce82"
 dependencies = [
  "const-field-offset",
  "i-slint-backend-selector",
@@ -5597,7 +5605,7 @@ dependencies = [
 [[package]]
 name = "slint-build"
 version = "1.17.0"
-source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#e11b75f53c5bfc9408ae75216697ea1959a14f84"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#d7a6a2afe6ff3a30c5fd8936e296b15ebaacce82"
 dependencies = [
  "derive_more",
  "fontique",
@@ -5609,7 +5617,7 @@ dependencies = [
 [[package]]
 name = "slint-macros"
 version = "1.17.0"
-source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#e11b75f53c5bfc9408ae75216697ea1959a14f84"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#d7a6a2afe6ff3a30c5fd8936e296b15ebaacce82"
 dependencies = [
  "i-slint-compiler",
  "proc-macro2",
@@ -6444,7 +6452,7 @@ checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 [[package]]
 name = "vtable"
 version = "0.4.0"
-source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#e11b75f53c5bfc9408ae75216697ea1959a14f84"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#d7a6a2afe6ff3a30c5fd8936e296b15ebaacce82"
 dependencies = [
  "const-field-offset",
  "portable-atomic",
@@ -6455,7 +6463,7 @@ dependencies = [
 [[package]]
 name = "vtable-macro"
 version = "0.4.0"
-source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#e11b75f53c5bfc9408ae75216697ea1959a14f84"
+source = "git+https://github.com/okhsunrog/slint?branch=rgb565-be#d7a6a2afe6ff3a30c5fd8936e296b15ebaacce82"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7206,8 +7214,7 @@ checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
 [[package]]
 name = "xtensa-lx"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e012d667b0aa6d2592ace8ef145a98bff3e76cca7a644f4181ecd7a916ed289b"
+source = "git+https://github.com/okhsunrog/esp-hal?branch=i2s-dma-reset-fix#ac046e17eaea3c7e4bf4c9f2b63d27ded5aa328f"
 dependencies = [
  "critical-section",
 ]
@@ -7215,8 +7222,7 @@ dependencies = [
 [[package]]
 name = "xtensa-lx-rt"
 version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "409a9b4629d429e995cde4dfbd9fe562ccae66f7624514e200733fc5d0ea8905"
+source = "git+https://github.com/okhsunrog/esp-hal?branch=i2s-dma-reset-fix#ac046e17eaea3c7e4bf4c9f2b63d27ded5aa328f"
 dependencies = [
  "document-features",
  "xtensa-lx",
@@ -7226,8 +7232,7 @@ dependencies = [
 [[package]]
 name = "xtensa-lx-rt-proc-macros"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96fb42cd29c42f8744c74276e9f5bee7b06685bbe5b88df891516d72cb320450"
+source = "git+https://github.com/okhsunrog/esp-hal?branch=i2s-dma-reset-fix#ac046e17eaea3c7e4bf4c9f2b63d27ded5aa328f"
 dependencies = [
  "proc-macro2",
  "quote",
