@@ -13,7 +13,8 @@ use embassy_embedded_hal::shared_bus::asynch::i2c::I2cDevice;
 use embassy_sync::blocking_mutex::raw::{CriticalSectionRawMutex, NoopRawMutex};
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
-use embassy_time::{Duration, Instant, Timer};
+use embassy_futures::select::{Either, Either4, select, select4};
+use embassy_time::{Duration, Instant, Ticker, Timer};
 use esp_backtrace as _;
 use esp_hal::delay::Delay;
 use esp_hal::dma::{DmaRxBuf, DmaTxBuf};
@@ -75,13 +76,19 @@ enum TouchState {
     Pressed { x: u16, y: u16 },
 }
 
+/// AXP2101 telemetry, produced by `pmic_task` (the sole AXP owner).
 #[derive(Clone, Copy, Debug, Default)]
-struct I2cMeasurements {
+struct PmicStats {
     battery_mv: u16,
     vbus_mv: u16,
     vsys_mv: u16,
     temp_c: f32,
     soc: u8,
+}
+
+/// INA3221 + RTC telemetry, produced by `i2c_service_task`.
+#[derive(Clone, Copy, Debug, Default)]
+struct SensorStats {
     ina_voltage_mv: [f32; 3],
     ina_current_ma: [f32; 3],
     rtc_time: Option<DateTime>,
@@ -89,7 +96,11 @@ struct I2cMeasurements {
 
 static I2C_INIT_SIGNAL: Signal<CriticalSectionRawMutex, I2cInitInfo> = Signal::new();
 static TOUCH_SIGNAL: Signal<CriticalSectionRawMutex, TouchState> = Signal::new();
-static I2C_MEASUREMENTS_SIGNAL: Signal<CriticalSectionRawMutex, I2cMeasurements> = Signal::new();
+static PMIC_STATS_SIGNAL: Signal<CriticalSectionRawMutex, PmicStats> = Signal::new();
+static SENSOR_STATS_SIGNAL: Signal<CriticalSectionRawMutex, SensorStats> = Signal::new();
+/// Raised by `pmic_task` once the power rails (LCD/touch/backlight) are
+/// configured — the display init must wait for this so the panel is powered.
+static PMIC_READY_SIGNAL: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 static BACKLIGHT_SIGNAL: Signal<CriticalSectionRawMutex, u8> = Signal::new();
 static POWER_OFF_SIGNAL: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 static EXT5V_SIGNAL: Signal<CriticalSectionRawMutex, bool> = Signal::new();
@@ -142,31 +153,96 @@ async fn ble_task(controller: ExternalController<BleConnector<'static>, 1>) {
     ble::run(controller).await;
 }
 
+/// Sole owner of the AXP2101 PMIC. Initializes the rails, then runs an
+/// event-driven loop: control requests (backlight, ext-5V, power-off, speaker
+/// rail) arrive as signals, and a 1 s tick publishes battery/voltage telemetry.
+/// The speaker rail (ALDO3) is powered only while audio plays.
 #[embassy_executor::task]
-async fn i2c_service_task(i2c_bus: &'static SharedI2cBus) {
+async fn pmic_task(i2c_bus: &'static SharedI2cBus) {
     let i2c_pmic = I2cDevice::new(i2c_bus);
-    let i2c_touch = I2cDevice::new(i2c_bus);
-    let i2c_ina = I2cDevice::new(i2c_bus);
-    let i2c_rtc = I2cDevice::new(i2c_bus);
 
     info!("Initializing PMIC...");
     let mut axp = pmic::init_pmic(i2c_pmic).await.unwrap();
     pmic::configure_all_rails(&mut axp).await.unwrap();
     set_backlight(&mut axp, Backlight::On(50)).await.unwrap();
+    // Rails are up — let the render task power on and init the display.
+    PMIC_READY_SIGNAL.signal(());
 
     // Short vibration on boot.
-    axp.set_ldo_voltage_mv(axp2101_dd::LdoId::Dldo1, 3300)
-        .await
-        .unwrap();
-    axp.set_ldo_enable(axp2101_dd::LdoId::Dldo1, true)
-        .await
-        .unwrap();
+    let _ = axp.set_ldo_voltage_mv(axp2101_dd::LdoId::Dldo1, 3300).await;
+    let _ = axp.set_ldo_enable(axp2101_dd::LdoId::Dldo1, true).await;
     Timer::after(Duration::from_millis(200)).await;
-    axp.set_ldo_enable(axp2101_dd::LdoId::Dldo1, false)
-        .await
-        .unwrap();
+    let _ = axp.set_ldo_enable(axp2101_dd::LdoId::Dldo1, false).await;
 
-    Timer::after(Duration::from_millis(300)).await;
+    let mut ticker = Ticker::every(Duration::from_secs(1));
+    loop {
+        match select(
+            select4(
+                BACKLIGHT_SIGNAL.wait(),
+                EXT5V_SIGNAL.wait(),
+                POWER_OFF_SIGNAL.wait(),
+                audio::SPEAKER_POWER.wait(),
+            ),
+            ticker.next(),
+        )
+        .await
+        {
+            Either::First(Either4::First(brightness)) => {
+                let _ = set_backlight(&mut axp, Backlight::On(brightness)).await;
+            }
+            Either::First(Either4::Second(enabled)) => {
+                let _ = axp.set_ldo_enable(axp2101_dd::LdoId::Bldo2, enabled).await;
+                info!("External 5V output: {}", if enabled { "ON" } else { "OFF" });
+            }
+            Either::First(Either4::Third(())) => {
+                info!("Power off requested, shutting down...");
+                if let Err(e) = axp.power_off().await {
+                    info!("Failed to power off: {:?}", e);
+                }
+            }
+            Either::First(Either4::Fourth(on)) => {
+                let _ = axp.set_ldo_enable(axp2101_dd::LdoId::Aldo3, on).await;
+                info!("Speaker rail {}", if on { "ON" } else { "OFF" });
+                if on {
+                    // Let the NS4168 rail settle before the audio task streams.
+                    Timer::after(Duration::from_millis(30)).await;
+                    audio::SPEAKER_READY.signal(());
+                }
+            }
+            Either::Second(()) => {
+                let battery_mv = axp.get_battery_voltage_mv().await.unwrap_or(0);
+                let vbus_good = axp.is_vbus_good().await.unwrap_or(false);
+                let vbus_mv = if vbus_good {
+                    axp.get_vbus_voltage_mv().await.unwrap_or(0)
+                } else {
+                    0
+                };
+                let vsys_mv = axp.get_vsys_voltage_mv().await.unwrap_or(0);
+                let temp_c = axp.get_die_temperature_c().await.unwrap_or(0.0);
+                let soc = axp
+                    .ll
+                    .battery_percentage()
+                    .read_async()
+                    .await
+                    .map(|s| s.percentage())
+                    .unwrap_or(0);
+                PMIC_STATS_SIGNAL.signal(PmicStats {
+                    battery_mv,
+                    vbus_mv,
+                    vsys_mv,
+                    temp_c,
+                    soc,
+                });
+            }
+        }
+    }
+}
+
+#[embassy_executor::task]
+async fn i2c_service_task(i2c_bus: &'static SharedI2cBus) {
+    let i2c_touch = I2cDevice::new(i2c_bus);
+    let i2c_ina = I2cDevice::new(i2c_bus);
+    let i2c_rtc = I2cDevice::new(i2c_bus);
 
     info!("Initializing touch controller...");
     let mut touch = Ft6336uAsync::new(i2c_touch);
@@ -202,22 +278,6 @@ async fn i2c_service_task(i2c_bus: &'static SharedI2cBus) {
     let mut measurement_timer = Instant::now();
 
     loop {
-        if POWER_OFF_SIGNAL.try_take().is_some() {
-            info!("Power off requested, shutting down...");
-            if let Err(e) = axp.power_off().await {
-                info!("Failed to power off: {:?}", e);
-            }
-        }
-
-        if let Some(brightness) = BACKLIGHT_SIGNAL.try_take() {
-            let _ = set_backlight(&mut axp, Backlight::On(brightness)).await;
-        }
-
-        if let Some(enabled) = EXT5V_SIGNAL.try_take() {
-            let _ = axp.set_ldo_enable(axp2101_dd::LdoId::Bldo2, enabled).await;
-            info!("External 5V output: {}", if enabled { "ON" } else { "OFF" });
-        }
-
         if let Some(dt) = RTC_SET_SIGNAL.try_take() {
             info!(
                 "Setting RTC from BLE: 20{:02}-{:02}-{:02} {:02}:{:02}:{:02}",
@@ -245,32 +305,7 @@ async fn i2c_service_task(i2c_bus: &'static SharedI2cBus) {
         if measurement_timer.elapsed() >= Duration::from_secs(1) {
             measurement_timer = Instant::now();
 
-            let battery_mv = axp.get_battery_voltage_mv().await.unwrap_or(0);
-            let vbus_good = axp.is_vbus_good().await.unwrap_or(false);
-            let vbus_mv = if vbus_good {
-                axp.get_vbus_voltage_mv().await.unwrap_or(0)
-            } else {
-                0
-            };
-            let vsys_mv = axp.get_vsys_voltage_mv().await.unwrap_or(0);
-            let temp_c = axp.get_die_temperature_c().await.unwrap_or(0.0);
-            let soc = axp
-                .ll
-                .battery_percentage()
-                .read_async()
-                .await
-                .map(|s| s.percentage())
-                .unwrap_or(0);
-
-            let mut measurements = I2cMeasurements {
-                battery_mv,
-                vbus_mv,
-                vsys_mv,
-                temp_c,
-                soc,
-                ..Default::default()
-            };
-
+            let mut stats = SensorStats::default();
             for (idx, ch) in [
                 ChannelId::Channel1,
                 ChannelId::Channel2,
@@ -279,15 +314,15 @@ async fn i2c_service_task(i2c_bus: &'static SharedI2cBus) {
             .into_iter()
             .enumerate()
             {
-                measurements.ina_voltage_mv[idx] = ina.get_bus_voltage_mv(ch).await.unwrap_or(0.0);
-                measurements.ina_current_ma[idx] = ina
+                stats.ina_voltage_mv[idx] = ina.get_bus_voltage_mv(ch).await.unwrap_or(0.0);
+                stats.ina_current_ma[idx] = ina
                     .get_current_ma(ch, SHUNT_RESISTOR_MOHMS)
                     .await
                     .unwrap_or(0.0);
             }
 
-            measurements.rtc_time = rtc.get_datetime().await.ok();
-            I2C_MEASUREMENTS_SIGNAL.signal(measurements);
+            stats.rtc_time = rtc.get_datetime().await.ok();
+            SENSOR_STATS_SIGNAL.signal(stats);
         }
 
         Timer::after(Duration::from_millis(8)).await;
@@ -342,6 +377,7 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
     static I2C_BUS: StaticCell<SharedI2cBus> = StaticCell::new();
     let i2c_bus = I2C_BUS.init(Mutex::new(i2c));
 
+    spawner.spawn(pmic_task(i2c_bus).unwrap());
     spawner.spawn(i2c_service_task(i2c_bus).unwrap());
     spawner.spawn(ble_task(controller).unwrap());
     spawner.spawn(config_store::task(peripherals.FLASH).unwrap());
@@ -429,6 +465,10 @@ async fn render_task(
         "[core1] I2C service ready; RTC clock valid: {}",
         i2c_init.rtc_clock_valid
     );
+
+    // Display rails (ALDO4/ALDO2/BLDO1) are powered by pmic_task; wait for them
+    // before driving the panel.
+    PMIC_READY_SIGNAL.wait().await;
 
     // --- SPI display init ---
     info!("[core1] Initializing SPI for display...");
@@ -547,21 +587,23 @@ async fn render_task(
                 dispatch_touch_state(&ui, &mut last_touch_pos, touch_state);
             }
 
-            if let Some(measurements) = I2C_MEASUREMENTS_SIGNAL.try_take() {
-                ui.set_battery_percent(sstr!("{}", measurements.soc));
-                ui.set_battery_voltage(sstr!("{}", measurements.battery_mv));
-                ui.set_vbus_voltage(sstr!("{}", measurements.vbus_mv));
-                ui.set_vsys_voltage(sstr!("{}", measurements.vsys_mv));
-                ui.set_temperature(sstr!("{:.1}", measurements.temp_c));
+            if let Some(p) = PMIC_STATS_SIGNAL.try_take() {
+                ui.set_battery_percent(sstr!("{}", p.soc));
+                ui.set_battery_voltage(sstr!("{}", p.battery_mv));
+                ui.set_vbus_voltage(sstr!("{}", p.vbus_mv));
+                ui.set_vsys_voltage(sstr!("{}", p.vsys_mv));
+                ui.set_temperature(sstr!("{:.1}", p.temp_c));
+            }
 
-                ui.set_ina_ch1_voltage(sstr!("{:.0} mV", measurements.ina_voltage_mv[0]));
-                ui.set_ina_ch1_current(sstr!("{:.1} mA", measurements.ina_current_ma[0]));
-                ui.set_ina_ch2_voltage(sstr!("{:.0} mV", measurements.ina_voltage_mv[1]));
-                ui.set_ina_ch2_current(sstr!("{:.1} mA", measurements.ina_current_ma[1]));
-                ui.set_ina_ch3_voltage(sstr!("{:.0} mV", measurements.ina_voltage_mv[2]));
-                ui.set_ina_ch3_current(sstr!("{:.1} mA", measurements.ina_current_ma[2]));
+            if let Some(s) = SENSOR_STATS_SIGNAL.try_take() {
+                ui.set_ina_ch1_voltage(sstr!("{:.0} mV", s.ina_voltage_mv[0]));
+                ui.set_ina_ch1_current(sstr!("{:.1} mA", s.ina_current_ma[0]));
+                ui.set_ina_ch2_voltage(sstr!("{:.0} mV", s.ina_voltage_mv[1]));
+                ui.set_ina_ch2_current(sstr!("{:.1} mA", s.ina_current_ma[1]));
+                ui.set_ina_ch3_voltage(sstr!("{:.0} mV", s.ina_voltage_mv[2]));
+                ui.set_ina_ch3_current(sstr!("{:.1} mA", s.ina_current_ma[2]));
 
-                if let Some(dt) = measurements.rtc_time {
+                if let Some(dt) = s.rtc_time {
                     ui.set_clock_text(sstr!("{:02}:{:02}:{:02}", dt.hours, dt.minutes, dt.seconds));
                 }
             }

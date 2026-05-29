@@ -26,6 +26,13 @@ pub enum Sfx {
 
 pub static PLAY_SIGNAL: Signal<CriticalSectionRawMutex, Sfx> = Signal::new();
 
+/// Speaker power-rail control, handled by the bin's `pmic_task` (it owns the
+/// AXP2101). The audio task requests the NS4168's ALDO3 rail on before a clip
+/// and off after, so the amp draws no idle current between sounds.
+pub static SPEAKER_POWER: Signal<CriticalSectionRawMutex, bool> = Signal::new();
+/// Ack from `pmic_task`: the rail is enabled and has settled — safe to stream.
+pub static SPEAKER_READY: Signal<CriticalSectionRawMutex, ()> = Signal::new();
+
 const SAMPLE_RATE: u32 = 44_100;
 
 /// Streaming ADPCM decoder: yields one mono i16 sample per call.
@@ -117,6 +124,11 @@ pub async fn task(
             Sfx::Ping => SOUND_PING,
         });
 
+        // Power the NS4168 rail and wait until it has settled before the first
+        // sample (avoids clipping the clip's start); pmic_task owns the AXP.
+        SPEAKER_POWER.signal(true);
+        SPEAKER_READY.wait().await;
+
         let mut buf = stream_buf.take().unwrap();
         buf.push_with(|b| fill(b, &mut src)); // prefill so DMA starts with audio
 
@@ -134,5 +146,8 @@ pub async fn task(
         }
         tx = Some(tx_back);
         stream_buf = Some(buf_back);
+
+        // Clip done — cut power to the amp so it draws nothing while idle.
+        SPEAKER_POWER.signal(false);
     }
 }

@@ -152,10 +152,11 @@ where
     axp.set_ldo_enable(LdoId::Aldo2, true).await?;
     axp.set_ldo_voltage_mv(LdoId::Aldo2, 3300).await?;
 
-    // ALDO3: Speaker enable (NS4168 SPK_EN) - always on, silence = no power draw
-    info!("  ALDO3: Speaker 3.3V");
+    // ALDO3: Speaker (NS4168 SPK_EN). OFF at boot; pmic_task powers it only
+    // during audio playback (driven by audio::SPEAKER_POWER) to cut idle draw.
+    info!("  ALDO3: Speaker 3.3V (off until playback)");
     axp.set_ldo_voltage_mv(LdoId::Aldo3, 3300).await?;
-    axp.set_ldo_enable(LdoId::Aldo3, true).await?;
+    axp.set_ldo_enable(LdoId::Aldo3, false).await?;
 
     // BLDO1: LCD backlight (ILI9342C BL)
     info!("  BLDO1: LCD Backlight 3.3V");
