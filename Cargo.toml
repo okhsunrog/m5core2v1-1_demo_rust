@@ -8,6 +8,13 @@ version      = "0.1.0"
 name = "m5core2v1-1_esp-hal_demo"
 path = "./src/bin/main.rs"
 
+# ESP32 I2S reset_tx regression repro (serial, no JTAG). Point the local
+# esp-hal patch below at a broken (#5603) vs fixed (reset_tx barrier) branch
+# and run: cargo run --release --bin i2s_loopback
+[[bin]]
+name = "i2s_loopback"
+path = "./src/bin/i2s_loopback.rs"
+
 [dependencies]
 esp-hal = { version = "1.1.0", features = ["esp32", "log-04", "unstable"] }
 
