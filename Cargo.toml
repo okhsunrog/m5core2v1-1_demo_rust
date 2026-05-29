@@ -65,6 +65,8 @@ sequential-storage = { version = "7.2.0", features = ["postcard"] }
 serde = { version = "1.0.228", default-features = false, features = ["derive"] }
 audio-codec-algorithms = "0.8.0"
 esp32 = { version = "0.40.2", features = ["critical-section"] }
+sea-codec = { version = "0.7.0", default-features = false }
+lc3-codec = "0.2.0"
 
 
 [profile.dev]
@@ -101,6 +103,13 @@ slint-build = { git = "https://github.com/okhsunrog/slint", branch = "rgb565-be"
 # fork branch instead. Keep the local clone on the i2s-dma-reset-fix branch.
 # All monorepo crates must be patched together (shared internal APIs).
 [patch.crates-io]
+# Bench-only vendored patches (needed by src/bin/bench_codecs.rs):
+# - radium 0.7.0 (via bitvec → lc3-codec) assumes 64-bit atomics; Xtensa has
+#   none. Local copy adds an "xtensa" arm to its build.rs.
+# - sea-codec declares cdylib/staticlib crate-types that need a panic handler +
+#   allocator (fatal on no_std). Local copy is rlib-only.
+radium                   = { path = "vendor/radium" }
+sea-codec                = { path = "vendor/sea-codec" }
 esp-hal                  = { path = "/home/okhsunrog/code/rust/esp-hal/esp-hal" }
 esp-hal-procmacros       = { path = "/home/okhsunrog/code/rust/esp-hal/esp-hal-procmacros" }
 esp-alloc                = { path = "/home/okhsunrog/code/rust/esp-hal/esp-alloc" }
