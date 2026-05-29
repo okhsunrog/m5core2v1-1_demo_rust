@@ -45,7 +45,8 @@ fn main() {
 
     let pcm = Command::new("ffmpeg")
         .args(["-hide_banner", "-loglevel", "error", "-i", input,
-               "-f", "s16le", "-ac", "1", "-ar", &rate.to_string(), "-"])
+               "-f", "s16le", "-ac", "1",
+               "-af", &format!("aresample={rate}:resampler=soxr"), "-"])
         .stdout(Stdio::piped())
         .output()
         .expect("failed to spawn ffmpeg");

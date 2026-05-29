@@ -15,20 +15,23 @@ size**, **decode CPU**, and **decode RAM**. Measured on real hardware.
 
 ## Summary
 
-| Codec | Flash (clip) | vs ADPCM | Decode ×realtime | CPU @ realtime¹ | Decode RAM |
-|-------|-------------:|---------:|-----------------:|----------------:|-----------:|
-| **IMA ADPCM** (4-bit) | 296.5 KB | 1.00× | **54×** | ~1.9% | **~0** (stack only) |
-| **sea-codec** CBR 3-bit | 239.6 KB | 0.81× | **16×** | ~6.3% | few KB² |
-| **lc3-codec** 80 B/frame | 98.9 KB | 0.33× | **4.0×** | ~25% | **30.6 KB** fixed |
+| Codec | Flash (clip) | vs ADPCM | Decode ×realtime | CPU @ realtime¹ | Decode RAM | SNR² |
+|-------|-------------:|---------:|-----------------:|----------------:|-----------:|-----:|
+| **IMA ADPCM** (4-bit) | 296.5 KB | 1.00× | **54×** | ~1.9% | **~0** (stack only) | 41.8 dB |
+| **sea-codec** CBR 3-bit | 239.6 KB | 0.81× | **16×** | ~6.3% | ~37–47 KB | **45.5 dB** |
+| **lc3-codec** 80 B/frame | 98.9 KB | 0.33× | **4.0×** | ~25% | **30.6 KB** fixed | 20.7 dB² |
 
 ¹ fraction of one 240 MHz core to decode in real time.
-² intrinsic decoder state is ~20 B; see the RAM note below.
+² SNR vs the source waveform — **valid only for the waveform codecs** (ADPCM, sea).
+LC3 is an MDCT transform codec that shapes quantization noise psychoacoustically,
+so its low SNR is *not* a quality verdict; judge LC3 by ear (see Quality below).
 
 **Verdict for this project (3 short notification sounds):** keep **IMA ADPCM** —
-zero RAM, negligible CPU. If a principled upgrade is wanted, **sea-codec @ 2-bit**
-is the sweet spot (smaller flash, better quality, still cheap). **LC3** gives the
-best compression and quality but its RAM + CPU cost is a poor fit for short SFX
-on a core/heap shared with Slint + BLE.
+zero RAM, negligible CPU, and the clip already sounds fine. If a principled upgrade
+is wanted, **sea-codec @ 3-bit** is both smaller *and* measurably cleaner than ADPCM
+(45.5 vs 41.8 dB) — the best quality move, at ~6% CPU but a non-trivial ~37 KB heap.
+**LC3** compresses 3× better and likely sounds best, but ~31 KB RAM + ~25% of a core
+is a poor fit for short SFX on a core/heap shared with Slint + BLE.
 
 ## 1. Flash size (compression)
 
@@ -72,10 +75,80 @@ at 165 KB — a strictly better size/CPU point.
 | Codec | Heap | Notes |
 |-------|-----:|-------|
 | IMA ADPCM | ~0 B | `AdpcmImaState` is ~4 B on the stack |
-| sea-codec 3-bit | +20 B intrinsic / 45 KB as-tested | the 45 KB is the per-chunk output staging `Vec` (default `frames_per_chunk = 5120`); a smaller chunk drops it to a couple KB |
+| sea-codec 3-bit | ~37–47 KB | a ~36 KB fixed decoder floor + ~2 B/frame staging (see below) |
 | lc3-codec 80 B/frame | 30.6 KB fixed | 19.9 KB scaler (`f32`) + 7.7 KB complex (FFT) + ~3 KB channel state/output — mandatory MDCT/FFT scratch, no per-frame churn |
 
-Real RAM floor: **ADPCM (≈0) ≪ sea-codec (a few KB, tunable) < LC3 (~31 KB fixed)**.
+Real RAM floor: **ADPCM (≈0) ≪ LC3 (~31 KB fixed) ≈ sea-codec (~36–47 KB)**.
+
+> **Correction:** an earlier draft claimed sea-codec needs only "a few KB,
+> tunable." That was wrong — see the block-size sweep below. The decoder has a
+> hard ~36 KB floor that block size cannot remove.
+
+### sea-codec heap vs block size (`frames_per_chunk`)
+
+Measured with a counting allocator on the host (allocation byte-requests are
+platform-independent; the resident number was validated against the on-device
+`esp_alloc::HEAP.used()` — 46.6 KB host vs 45 KB device at chunk 5120).
+
+| `frames_per_chunk` | encoded size | resident heap | peak (incl. realloc) |
+|-------------------:|-------------:|--------------:|---------------------:|
+| 100 | 361.8 KB | **36.6 KB** | 37.8 KB |
+| 200 | 296.6 KB | 36.8 KB | 38.0 KB |
+| 500 | 262.2 KB | 37.4 KB | 38.5 KB |
+| 1000 | 249.1 KB | 38.4 KB | 40.5 KB |
+| 2000 | 243.2 KB | 40.4 KB | 44.5 KB |
+| 5120 (default) | 239.6 KB | 46.6 KB | 61.4 KB |
+
+Two takeaways: (1) the ~36 KB decoder floor barely moves with block size; (2)
+smaller blocks *grow* the file (more per-chunk header overhead), so chunk size is
+a RAM-vs-flash trade with a hard RAM floor. The sweet spot is ~500–1000 frames
+(≈37–38 KB resident, 249–262 KB flash).
+
+## 4. Quality (SNR vs source)
+
+SNR of each decoded clip against the original PCM, best-offset aligned (LC3's
+~120-sample MDCT delay removed before scoring).
+
+| Codec | Flash | SNR |
+|-------|------:|----:|
+| IMA ADPCM 4-bit (current) | 296.5 KB | 41.8 dB |
+| sea-codec 2-bit | 165.4 KB | 37.6 dB |
+| **sea-codec 3-bit** | 239.6 KB | **45.5 dB** |
+| sea-codec 4-bit | 313.7 KB | 51.0 dB |
+| lc3 40 B/frame | 49.4 KB | 17.6 dB† |
+| lc3 80 B/frame | 98.9 KB | 20.7 dB† |
+
+**sea-codec 3-bit is both smaller than ADPCM *and* objectively cleaner** (45.5 vs
+41.8 dB) — a strict win on both axes. † **LC3's SNR is not a quality verdict:**
+MDCT codecs shape quantization noise to be perceptually masked, so a low waveform
+SNR can still sound good. LC3 must be judged by ear, not by this number.
+
+## 5. ESP32 internal-RAM budget (can the heap grow?)
+
+From the linked main firmware (`xtensa-esp32-elf-{size,nm}`):
+
+| Region | Range | Size | Contents |
+|--------|-------|-----:|----------|
+| `dram_seg` | `0x3FFB0000`–`0x3FFE0000` | 192 KB | `.data` 16 KB + `.rwtext(.wifi)` ~52 KB + `.bss` ~90 KB + **cpu0 stack 23 KB** → effectively full |
+| reserved ROM | `0x3FFE0000`–`0x3FFE7E30` | ~32 KB | ROM data (~2 KB) + **ROM stacks ~22.5 KB (reclaimable after dual-core boot)** |
+| `dram2_seg` (heap) | `0x3FFE7E30`–`0x3FFF0000` | 96.5 KB | the `#[ram(reclaimed)]` heap (96 KB) → **maxed** (~464 B spare) |
+
+- `RESERVE_DRAM = 0` in this build — esp-hal does **not** reserve 64 KB for BLE at
+  link time; esp-radio's controller takes its memory from the heap at runtime
+  (which is why ~55 KB of the 96 KB heap is already used, leaving ~41 KB free).
+- Biggest `.bss` consumers: core-1 `APP_CORE_STACK` 32 KB, three display tile
+  buffers 3×10 KB, the audio DMA stream buffer 16 KB (a `static`, **not** heap),
+  BLE/embassy pools ~15 KB.
+- **The heap can't grow for free:** `dram2_seg` is maxed and `dram_seg` is full.
+  Levers (no PSRAM — it's slow and unneeded here):
+  - **Reclaim the ~22.5 KB ROM stacks** by extending `dram2_seg` in the forked
+    `esp-hal/ld/esp32/memory.x` (ESP-IDF does this as standard): heap 96 → ~118 KB,
+    free 41 → ~63 KB. Lowest-effort, low-risk.
+  - Shrink the 32 KB core-1 stack (needs a render stack-usage check) and add the
+    saving as a second `esp_alloc` region.
+- **But for audio you likely don't need to:** the 16 KB stream buffer is already a
+  `static`, so the ~41 KB free heap covers a codec working set as-is — LC3 (~31 KB)
+  fits with margin, sea-codec 3-bit (~37 KB) fits tightly, ADPCM is free.
 
 ## FPU note
 
@@ -98,10 +171,25 @@ issues needed local patches (vendored under [`vendor/`](vendor/)):
   `cdylib`/`staticlib` artifacts require a `#[panic_handler]` + `#[global_allocator]`,
   fatal on `no_std`. Fix: vendor with `crate-type = ["rlib"]`.
 
+## Encoding tools
+
+Offline encoders (rust-script + ffmpeg, like the firmware's
+[`scripts/encode_adpcm.rs`](scripts/encode_adpcm.rs)):
+
+```bash
+scripts/encode_adpcm.rs in.ogg out.adpcm                    # firmware codec (IMA ADPCM)
+scripts/encode_sea.rs   in.ogg out.sea  --bitrate 3         # comparison: sea-codec
+scripts/encode_lc3.rs   in.ogg out.lc3  --bytes-per-frame 80 # comparison: LC3
+```
+
+Each pipes ffmpeg PCM (mono, `--rate`) through the codec's own encoder, so the
+output round-trips byte-identically with what the decoder reads. `.sea`/`.lc3` are
+comparison assets; the firmware ships ADPCM.
+
 ## Caveats
 
 - Built at `opt-level = "s"` (the project default). `opt-level = 3` would likely
   speed up LC3/sea (FFT/filter loops) more than ADPCM.
 - CPU/RAM figures are decode-only; encoding is done offline on the host.
-- No automated quality (PSNR/listening) comparison — by ear, LC3 ≫ sea > ADPCM at
-  equal size, as expected from codec generation.
+- SNR (§4) is objective but waveform-only — valid for ADPCM/sea, *not* for LC3
+  (transform codec; judge by ear). No formal perceptual (PEAQ/MUSHRA) test done.
