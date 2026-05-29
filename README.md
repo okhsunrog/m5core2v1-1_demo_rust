@@ -94,6 +94,10 @@ guaranteed byte-correct. Compression is 4:1 vs 16-bit PCM. Note that
 `sox -e ima-adpcm` and `ffmpeg -acodec adpcm_ima_wav` produce **block-formatted**
 ADPCM that is not playable by this decoder — use the script.
 
+Why IMA ADPCM and not a newer codec? See the on-device codec evaluation
+(ADPCM vs sea-codec vs LC3 — flash size, decode CPU, heap, quality) on the
+`local-esp-hal-test` branch: `CODEC_BENCHMARK.md`.
+
 ## BLE Time Sync
 
 The device advertises as **"M5Core2"** with a writable GATT characteristic for setting the RTC. A Python script is included:
