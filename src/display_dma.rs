@@ -11,6 +11,10 @@ use slint::platform::software_renderer::{LineBufferProvider, Rgb565PixelBE};
 const RAM_WRITE: u8 = 0x2c;
 const SET_COLUMN_ADDRESS: u8 = 0x2a;
 const SET_PAGE_ADDRESS: u8 = 0x2b;
+const DISPLAY_OFF: u8 = 0x28;
+const DISPLAY_ON: u8 = 0x29;
+const SLEEP_IN: u8 = 0x10;
+const SLEEP_OUT: u8 = 0x11;
 const BYTES_PER_PIXEL: usize = core::mem::size_of::<Rgb565PixelBE>();
 
 #[derive(Debug)]
@@ -204,6 +208,30 @@ where
 
         self.flush_active_tile()?;
         self.wait_pending()
+    }
+
+    /// Put the panel into low-power sleep: blank the display and stop the
+    /// internal DC/DC and oscillator. GRAM is retained, so the previous image
+    /// reappears after [`wake`](Self::wake). The caller should stop rendering
+    /// while asleep. The ILI9342C wants ~120 ms after SLEEP_IN before a
+    /// subsequent SLEEP_OUT, which the async caller satisfies between toggles.
+    pub fn sleep(&mut self) -> Result<(), DmaLineDisplayError<CS::Error, DC::Error>> {
+        self.finish_frame()?;
+        self.write_command(DISPLAY_OFF, &[])?;
+        self.write_command(SLEEP_IN, &[])
+    }
+
+    /// Issue SLEEP_OUT to bring the panel out of sleep. The caller MUST wait
+    /// ~120 ms before [`display_on`](Self::display_on) or any further drawing,
+    /// per the ILI9342C timing requirement.
+    pub fn wake(&mut self) -> Result<(), DmaLineDisplayError<CS::Error, DC::Error>> {
+        self.write_command(SLEEP_OUT, &[])
+    }
+
+    /// Turn the display output back on (DISPLAY_ON). Call ~120 ms after
+    /// [`wake`](Self::wake).
+    pub fn display_on(&mut self) -> Result<(), DmaLineDisplayError<CS::Error, DC::Error>> {
+        self.write_command(DISPLAY_ON, &[])
     }
 
     fn set_error(&mut self, error: DmaLineDisplayError<CS::Error, DC::Error>) {

@@ -55,8 +55,16 @@ pub static PERSIST_BACKLIGHT: Signal<CriticalSectionRawMutex, u8> = Signal::new(
 /// immediately (no debounce — only changes on tap).
 pub static PERSIST_EXT5V: Signal<CriticalSectionRawMutex, bool> = Signal::new();
 
-/// Set by the task once initial flash read is complete.
+/// Carries the loaded config to the render task (consumed by its single
+/// `wait()`).
 pub static CONFIG_LOADED: Signal<CriticalSectionRawMutex, LoadedConfig> = Signal::new();
+
+/// Unit gate raised the instant the initial flash read finishes. `main` awaits
+/// this before starting the second core, so the first (cache-disabling) flash
+/// access never races the second core booting from flash (XIP). Distinct from
+/// `CONFIG_LOADED` because `Signal::wait` consumes the value, and the render
+/// task is the consumer of `CONFIG_LOADED`.
+pub static INITIAL_READ_DONE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 
 #[embassy_executor::task]
 pub async fn task(flash: esp_hal::peripherals::FLASH<'static>) {
@@ -82,6 +90,9 @@ pub async fn task(flash: esp_hal::peripherals::FLASH<'static>) {
 
     info!("[cfg] loaded: backlight={:?}, ext5v={:?}", backlight, ext5v);
     CONFIG_LOADED.signal(LoadedConfig { backlight, ext5v });
+    // Release `main` to start the second core now that the cache-disabling
+    // initial read is done (no XIP-from-flash race on the other core).
+    INITIAL_READ_DONE.signal(());
 
     // --- Writer loop ---
     let mut pending_backlight: Option<u8> = None;

@@ -8,12 +8,15 @@
 
 use alloc::boxed::Box;
 use alloc::format;
+use alloc::rc::Rc;
+use slint::platform::software_renderer::MinimalSoftwareWindow;
 use bt_hci::controller::ExternalController;
 use embassy_embedded_hal::shared_bus::asynch::i2c::I2cDevice;
 use embassy_sync::blocking_mutex::raw::{CriticalSectionRawMutex, NoopRawMutex};
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
-use embassy_futures::select::{Either, Either4, select, select4};
+use embassy_futures::select::{Either3, Either4, select3, select4};
+use core::sync::atomic::{AtomicBool, Ordering};
 use embassy_time::{Duration, Instant, Ticker, Timer};
 use esp_backtrace as _;
 use esp_hal::delay::Delay;
@@ -101,8 +104,15 @@ static SENSOR_STATS_SIGNAL: Signal<CriticalSectionRawMutex, SensorStats> = Signa
 /// Raised by `pmic_task` once the power rails (LCD/touch/backlight) are
 /// configured — the display init must wait for this so the panel is powered.
 static PMIC_READY_SIGNAL: Signal<CriticalSectionRawMutex, ()> = Signal::new();
-static BACKLIGHT_SIGNAL: Signal<CriticalSectionRawMutex, u8> = Signal::new();
+static BACKLIGHT_SIGNAL: Signal<CriticalSectionRawMutex, Backlight> = Signal::new();
 static POWER_OFF_SIGNAL: Signal<CriticalSectionRawMutex, ()> = Signal::new();
+/// Power-key gestures detected by `pmic_task` (polled from the AXP2101) and
+/// consumed by the render loop: short tap toggles the display, long hold opens
+/// the power menu.
+static POWER_KEY_SIGNAL: Signal<CriticalSectionRawMutex, pmic::PowerKey> = Signal::new();
+/// Gates FT6336U polling in `i2c_service_task`. Cleared while the display is
+/// asleep so touch scans (and their I2C traffic) pause until wake.
+static TOUCH_ENABLED: AtomicBool = AtomicBool::new(true);
 static EXT5V_SIGNAL: Signal<CriticalSectionRawMutex, bool> = Signal::new();
 static RTC_SET_SIGNAL: Signal<CriticalSectionRawMutex, DateTime> = Signal::new();
 
@@ -148,6 +158,27 @@ fn dispatch_touch_state(
     }
 }
 
+/// Bring the panel out of sleep: restore the backlight, issue SLEEP_OUT, wait
+/// the ILI9342C-mandated ~120 ms, turn the display on, re-enable touch and
+/// request a redraw. Shared by the short-tap wake and the long-hold (open menu
+/// while asleep) paths.
+async fn wake_display<CS, DC>(
+    display: &mut DmaLineDisplay<'_, CS, DC>,
+    slint_window: &Rc<MinimalSoftwareWindow>,
+    current_backlight: f32,
+) where
+    CS: embedded_hal::digital::OutputPin,
+    DC: embedded_hal::digital::OutputPin,
+{
+    let brightness = (current_backlight.clamp(0.0, 1.0) * 100.0) as u8;
+    BACKLIGHT_SIGNAL.signal(Backlight::On(brightness));
+    let _ = display.wake();
+    Timer::after(Duration::from_millis(120)).await;
+    let _ = display.display_on();
+    TOUCH_ENABLED.store(true, Ordering::Relaxed);
+    slint_window.request_redraw();
+}
+
 #[embassy_executor::task]
 async fn ble_task(controller: ExternalController<BleConnector<'static>, 1>) {
     ble::run(controller).await;
@@ -175,8 +206,12 @@ async fn pmic_task(i2c_bus: &'static SharedI2cBus) {
     let _ = axp.set_ldo_enable(axp2101_dd::LdoId::Dldo1, false).await;
 
     let mut ticker = Ticker::every(Duration::from_secs(1));
+    // Poll the power-key IRQ status faster than telemetry so a tap feels
+    // responsive. The bits are latched, so this interval only sets latency,
+    // not correctness.
+    let mut key_ticker = Ticker::every(Duration::from_millis(200));
     loop {
-        match select(
+        match select3(
             select4(
                 BACKLIGHT_SIGNAL.wait(),
                 EXT5V_SIGNAL.wait(),
@@ -184,23 +219,24 @@ async fn pmic_task(i2c_bus: &'static SharedI2cBus) {
                 audio::SPEAKER_POWER.wait(),
             ),
             ticker.next(),
+            key_ticker.next(),
         )
         .await
         {
-            Either::First(Either4::First(brightness)) => {
-                let _ = set_backlight(&mut axp, Backlight::On(brightness)).await;
+            Either3::First(Either4::First(backlight)) => {
+                let _ = set_backlight(&mut axp, backlight).await;
             }
-            Either::First(Either4::Second(enabled)) => {
+            Either3::First(Either4::Second(enabled)) => {
                 let _ = axp.set_ldo_enable(axp2101_dd::LdoId::Bldo2, enabled).await;
                 info!("External 5V output: {}", if enabled { "ON" } else { "OFF" });
             }
-            Either::First(Either4::Third(())) => {
+            Either3::First(Either4::Third(())) => {
                 info!("Power off requested, shutting down...");
                 if let Err(e) = axp.power_off().await {
                     info!("Failed to power off: {:?}", e);
                 }
             }
-            Either::First(Either4::Fourth(on)) => {
+            Either3::First(Either4::Fourth(on)) => {
                 let _ = axp.set_ldo_enable(axp2101_dd::LdoId::Aldo3, on).await;
                 info!("Speaker rail {}", if on { "ON" } else { "OFF" });
                 if on {
@@ -209,7 +245,15 @@ async fn pmic_task(i2c_bus: &'static SharedI2cBus) {
                     audio::SPEAKER_READY.signal(());
                 }
             }
-            Either::Second(()) => {
+            Either3::Third(()) => {
+                // Power-key poll: forward any latched gesture to the render loop.
+                match pmic::poll_power_key(&mut axp).await {
+                    Ok(Some(event)) => POWER_KEY_SIGNAL.signal(event),
+                    Ok(None) => {}
+                    Err(e) => info!("Power-key poll failed: {:?}", e),
+                }
+            }
+            Either3::Second(()) => {
                 let battery_mv = axp.get_battery_voltage_mv().await.unwrap_or(0);
                 let vbus_good = axp.is_vbus_good().await.unwrap_or(false);
                 let vbus_mv = if vbus_good {
@@ -288,18 +332,25 @@ async fn i2c_service_task(i2c_bus: &'static SharedI2cBus) {
             }
         }
 
-        if let Ok(touch_data) = touch.scan().await {
-            let touch_state = if touch_data.touch_count > 0 {
-                let p = &touch_data.points[0];
-                TouchState::Pressed { x: p.x, y: p.y }
-            } else {
-                TouchState::None
-            };
+        // Skip touch scanning (and its I2C traffic) while the display sleeps.
+        // Release any held touch once so the UI doesn't stay stuck pressed.
+        if TOUCH_ENABLED.load(Ordering::Relaxed) {
+            if let Ok(touch_data) = touch.scan().await {
+                let touch_state = if touch_data.touch_count > 0 {
+                    let p = &touch_data.points[0];
+                    TouchState::Pressed { x: p.x, y: p.y }
+                } else {
+                    TouchState::None
+                };
 
-            if touch_state != last_touch_state {
-                TOUCH_SIGNAL.signal(touch_state);
-                last_touch_state = touch_state;
+                if touch_state != last_touch_state {
+                    TOUCH_SIGNAL.signal(touch_state);
+                    last_touch_state = touch_state;
+                }
             }
+        } else if last_touch_state != TouchState::None {
+            TOUCH_SIGNAL.signal(TouchState::None);
+            last_touch_state = TouchState::None;
         }
 
         if measurement_timer.elapsed() >= Duration::from_secs(1) {
@@ -388,6 +439,14 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
         peripherals.GPIO0,
         peripherals.GPIO2,
     ).unwrap());
+
+    // Let the config task finish its initial flash read BEFORE the second core
+    // starts. The first flash access disables the instruction cache; if the
+    // second core were already booting from flash (XIP) at that moment, its
+    // instruction fetch would fault into a silent hang (the panic handler also
+    // lives in flash). Awaiting this gate runs config_store on this (core 0)
+    // executor while core 1 is still parked, eliminating the race.
+    config_store::INITIAL_READ_DONE.wait().await;
 
     // Move display + Slint render loop onto the second core so heavy frames
     // (e.g. animation screens) can't starve BLE / touch on core 0.
@@ -539,6 +598,7 @@ async fn render_task(
     ui.set_dma_buf_size(format!("{} KB", DMA_BUF_SIZE / 1024).into());
 
     ui.on_power_off(|| POWER_OFF_SIGNAL.signal(()));
+    ui.on_reboot(|| esp_hal::system::software_reset());
     ui.on_play_sound(|idx| {
         let sfx = match idx {
             0 => audio::Sfx::Chime,
@@ -558,7 +618,7 @@ async fn render_task(
     );
     ui.set_backlight_value(initial_backlight as f32 / 100.0);
     ui.set_ext5v_enabled(initial_ext5v);
-    BACKLIGHT_SIGNAL.signal(initial_backlight);
+    BACKLIGHT_SIGNAL.signal(Backlight::On(initial_backlight));
     EXT5V_SIGNAL.signal(initial_ext5v);
 
     info!("[core1] Starting Slint main loop...");
@@ -576,12 +636,62 @@ async fn render_task(
         let mut current_backlight: f32 = initial_backlight as f32 / 100.0;
         // External 5V output state
         let mut current_ext5v: bool = initial_ext5v;
+        // Whether the panel is awake and being rendered. A short power-key tap
+        // toggles this; a long hold opens the power menu.
+        let mut display_on = true;
 
         loop {
             let frame_start = Instant::now();
 
             // Update Slint timers and animations
             slint::platform::update_timers_and_animations();
+
+            // --- Power-key gestures (detected by pmic_task) ---
+            if let Some(event) = POWER_KEY_SIGNAL.try_take() {
+                match event {
+                    pmic::PowerKey::Short if display_on => {
+                        // Sleep: blank the panel, cut the backlight, pause touch.
+                        let _ = display.sleep();
+                        BACKLIGHT_SIGNAL.signal(Backlight::Off);
+                        TOUCH_ENABLED.store(false, Ordering::Relaxed);
+                        display_on = false;
+                        info!("Display asleep (power-key tap)");
+                    }
+                    pmic::PowerKey::Short => {
+                        // Wake from sleep.
+                        wake_display(
+                            &mut display,
+                            &slint_window,
+                            current_backlight,
+                        )
+                        .await;
+                        display_on = true;
+                        info!("Display awake (power-key tap)");
+                    }
+                    pmic::PowerKey::Long => {
+                        // A hold opens the power menu; wake first if asleep so
+                        // the menu is actually visible.
+                        if !display_on {
+                            wake_display(
+                                &mut display,
+                                &slint_window,
+                                current_backlight,
+                            )
+                            .await;
+                            display_on = true;
+                        }
+                        ui.set_show_power_menu(true);
+                        slint_window.request_redraw();
+                    }
+                }
+            }
+
+            // While asleep, skip touch dispatch and rendering; keep looping only
+            // to catch the next power-key wake.
+            if !display_on {
+                Timer::after(Duration::from_millis(50)).await;
+                continue;
+            }
 
             if let Some(touch_state) = TOUCH_SIGNAL.try_take() {
                 dispatch_touch_state(&ui, &mut last_touch_pos, touch_state);
@@ -615,7 +725,7 @@ async fn render_task(
             if (new_bl - current_backlight).abs() > 0.01 {
                 current_backlight = new_bl;
                 let brightness = (current_backlight.clamp(0.0, 1.0) * 100.0) as u8;
-                BACKLIGHT_SIGNAL.signal(brightness);
+                BACKLIGHT_SIGNAL.signal(Backlight::On(brightness));
                 PERSIST_BACKLIGHT.signal(brightness);
             }
 

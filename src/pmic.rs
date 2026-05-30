@@ -43,9 +43,43 @@ where
     // === M5Stack Core2 v1.1 Initialization Sequence ===
     // Following M5Unified Power_Class.cpp:458-468
 
-    // 1. Configure PowerKey timing (0x27 = 0x00)
-    // PowerKey Hold=1sec, PowerOff=4sec
-    axp.ll.power_on_level().write_async(|_| {}).await?;
+    // 1. Configure PowerKey timing (0x27)
+    //   - off_level = S10: holding the key for 10 s hard-powers-off the board
+    //                 (done entirely by the PMIC, independent of firmware).
+    //   - irq_level = S2_5: the long-press IRQ asserts after 2.5 s of holding,
+    //                 which firmware uses to pop the power menu.
+    //   - on_level left at reset default (power-on press time).
+    axp.ll
+        .power_on_level()
+        .write_async(|w| {
+            w.set_off_level(axp2101_dd::OffLevel::S10);
+            w.set_irq_level(axp2101_dd::IrqLevel::S25);
+        })
+        .await?;
+
+    // 1b. Enable the power-key short- and long-press IRQs so firmware can
+    // distinguish a quick tap (toggle display) from a hold (power menu).
+    // Short-press is enabled at reset; explicitly enable long-press too.
+    axp.ll
+        .irq_enable_1()
+        .modify_async(|w| {
+            w.set_power_key_short_press_irq_enable(true);
+            w.set_power_key_long_press_irq_enable(true);
+        })
+        .await?;
+
+    // 1c. Clear any power-key IRQ latched during power-on (the button press
+    // that turned the board on sets these). Otherwise the first poll would
+    // fire a phantom gesture and pop the power menu right after boot.
+    axp.ll
+        .irq_status_1()
+        .write_async(|w| {
+            w.set_pons_irq(true);
+            w.set_ponl_irq(true);
+            w.set_ponn_irq(true);
+            w.set_ponp_irq(true);
+        })
+        .await?;
 
     // 2. PMU common config (0x10 = 0x30)
     // 0x30 = 0b00110000: discharge_off_enable=1, reserved_bit4=1, pwrok_restart_enable=0
@@ -123,6 +157,48 @@ where
     Ok(axp)
 }
 
+/// A power-key gesture reported by the AXP2101, as classified in hardware.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PowerKey {
+    /// Quick tap (pressed and released before the long-press threshold).
+    Short,
+    /// Held past `irq_level` (2.5 s) — the long-press IRQ fired while holding.
+    Long,
+}
+
+/// Poll the power-key interrupt status (REG49) and return the latched gesture,
+/// if any. The IRQ bits are write-1-to-clear and latched, so periodic polling
+/// never misses an event. `Long` takes priority when both bits are set.
+pub async fn poll_power_key<I2C, E>(
+    axp: &mut Axp2101Async<axp2101_dd::AxpInterface<I2C>, E>,
+) -> Result<Option<PowerKey>, AxpError<E>>
+where
+    I2C: embedded_hal_async::i2c::I2c<Error = E>,
+    E: core::fmt::Debug,
+{
+    let status = axp.ll.irq_status_1().read_async().await?;
+    let long = status.ponl_irq();
+    let short = status.pons_irq();
+    if !long && !short {
+        return Ok(None);
+    }
+
+    // Clear only the bits we consume (writing 1 clears, writing 0 is a no-op).
+    axp.ll
+        .irq_status_1()
+        .write_async(|w| {
+            if long {
+                w.set_ponl_irq(true);
+            }
+            if short {
+                w.set_pons_irq(true);
+            }
+        })
+        .await?;
+
+    Ok(Some(if long { PowerKey::Long } else { PowerKey::Short }))
+}
+
 /// Configure all M5Stack Core2 v1.1 power rails
 ///
 /// Based on Core2 v1.1 schematic (Sch_Core2_v1.1_2023-07-20.pdf):
@@ -176,6 +252,7 @@ where
 }
 
 /// LCD backlight state.
+#[derive(Clone, Copy)]
 pub enum Backlight {
     /// Backlight on at given brightness (0-100%).
     /// 0% = minimum visible brightness, 100% = maximum.

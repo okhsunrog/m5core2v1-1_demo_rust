@@ -84,9 +84,15 @@ export component MainWindow inherits Window {
     in property <string> free-sram: "?";
     in property <string> uptime: "?";
 
-    // Triggered when the user taps the Power Off button on the System tab.
+    // Triggered when the user taps the Power Off button on the System tab,
+    // or the Power Off entry in the power menu.
     callback power-off();
+    // Triggered by the Reboot entry in the power menu (software_reset).
+    callback reboot();
     callback play-sound(int);
+
+    // Power menu overlay — raised by a ~2.5 s hold of the hardware power key.
+    in-out property <bool> show-power-menu: false;
 
     in property <string> spi-freq: "?";
     in property <string> i2c-freq: "?";
@@ -402,28 +408,6 @@ export component MainWindow inherits Window {
                 padding-top: 4px;
                 padding-bottom: 8px;
 
-                HorizontalLayout {
-                    alignment: end;
-                    padding-bottom: 4px;
-                    poweroff-btn := TouchArea {
-                        width: 110px;
-                        height: 32px;
-                        clicked => { root.power-off(); }
-                        Rectangle {
-                            background: poweroff-btn.pressed ? #aa1f3a : #d62a4d;
-                            border-radius: 6px;
-                            animate background { duration: 100ms; }
-                            Text {
-                                text: "⏻ Power Off";
-                                color: white;
-                                font-size: 14px;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
-                            }
-                        }
-                    }
-                }
-
                 Text { text: "Hardware"; color: #00d4ff; font-size: 14px; }
                 Rectangle { height: 1px; background: #222244; }
 
@@ -493,6 +477,91 @@ export component MainWindow inherits Window {
                         color: root.ext5v-enabled ? #00ff88 : #666666;
                         font-size: 13px;
                         vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+
+    // === Power menu modal overlay ===
+    // Drawn after the main layout, so it sits on top. Tapping the dimmed
+    // backdrop cancels; the panel itself swallows taps.
+    if show-power-menu: Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #000000cc;
+
+        backdrop := TouchArea {
+            clicked => { root.show-power-menu = false; }
+        }
+
+        Rectangle {
+            width: 240px;
+            height: 184px;
+            background: #1f1f38;
+            border-radius: 14px;
+            border-width: 1px;
+            border-color: #334466;
+
+            // Swallow taps on the panel so they don't reach the backdrop.
+            TouchArea {}
+
+            VerticalLayout {
+                padding: 16px;
+                spacing: 10px;
+
+                Text {
+                    text: "Power";
+                    color: #00d4ff;
+                    font-size: 16px;
+                    horizontal-alignment: center;
+                }
+
+                poweroff-menu := TouchArea {
+                    height: 40px;
+                    clicked => { root.power-off(); }
+                    Rectangle {
+                        background: poweroff-menu.pressed ? #aa1f3a : #d62a4d;
+                        border-radius: 8px;
+                        Text {
+                            text: "⏻ Power Off";
+                            color: white;
+                            font-size: 14px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                reboot-menu := TouchArea {
+                    height: 40px;
+                    clicked => { root.reboot(); }
+                    Rectangle {
+                        background: reboot-menu.pressed ? #1f6f8a : #2a8fb0;
+                        border-radius: 8px;
+                        Text {
+                            text: "⟳ Reboot";
+                            color: white;
+                            font-size: 14px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                cancel-menu := TouchArea {
+                    height: 32px;
+                    clicked => { root.show-power-menu = false; }
+                    Rectangle {
+                        background: cancel-menu.pressed ? #333355 : #2a2a4e;
+                        border-radius: 8px;
+                        Text {
+                            text: "Cancel";
+                            color: #aaaaaa;
+                            font-size: 13px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
                     }
                 }
             }
