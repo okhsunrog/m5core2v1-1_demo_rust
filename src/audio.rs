@@ -45,7 +45,12 @@ struct Source {
 
 impl Source {
     fn new(raw: &'static [u8]) -> Self {
-        Self { raw, pos: 0, high_pending: false, state: AdpcmImaState::new() }
+        Self {
+            raw,
+            pos: 0,
+            high_pending: false,
+            state: AdpcmImaState::new(),
+        }
     }
 
     fn finished(&self) -> bool {
@@ -107,7 +112,12 @@ pub async fn task(
     .unwrap()
     .into_async();
 
-    let i2s_tx = i2s.i2s_tx.with_bclk(bclk).with_ws(ws).with_dout(dout).build();
+    let i2s_tx = i2s
+        .i2s_tx
+        .with_bclk(bclk)
+        .with_ws(ws)
+        .with_dout(dout)
+        .build();
 
     // write() consumes the channel + buffer; the transfer hands them back on
     // completion, so we thread both through the playback loop.
@@ -132,7 +142,12 @@ pub async fn task(
         let mut buf = stream_buf.take().unwrap();
         buf.push_with(|b| fill(b, &mut src)); // prefill so DMA starts with audio
 
-        let mut transfer = tx.take().unwrap().write(buf).map_err(|(e, _, _)| e).unwrap();
+        let mut transfer = tx
+            .take()
+            .unwrap()
+            .write(buf)
+            .map_err(|(e, _, _)| e)
+            .unwrap();
         while !src.finished() {
             transfer.wait_for_available_async().await.unwrap();
             transfer.push_with(|b| fill(b, &mut src));

@@ -9,14 +9,13 @@
 use alloc::boxed::Box;
 use alloc::format;
 use alloc::rc::Rc;
-use slint::platform::software_renderer::MinimalSoftwareWindow;
 use bt_hci::controller::ExternalController;
+use core::sync::atomic::{AtomicBool, Ordering};
 use embassy_embedded_hal::shared_bus::asynch::i2c::I2cDevice;
+use embassy_futures::select::{Either3, Either4, select3, select4};
 use embassy_sync::blocking_mutex::raw::{CriticalSectionRawMutex, NoopRawMutex};
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
-use embassy_futures::select::{Either3, Either4, select3, select4};
-use core::sync::atomic::{AtomicBool, Ordering};
 use embassy_time::{Duration, Instant, Ticker, Timer};
 use esp_backtrace as _;
 use esp_hal::delay::Delay;
@@ -39,6 +38,7 @@ use mipidsi::options::{ColorInversion, Orientation, Rotation};
 use mipidsi::{Builder, interface};
 use pcf8563_dd::{DateTime, Pcf8563Async};
 use slint::PhysicalPosition;
+use slint::platform::software_renderer::MinimalSoftwareWindow;
 use slint::platform::{PointerEventButton, WindowEvent};
 use static_cell::StaticCell;
 
@@ -432,13 +432,16 @@ async fn main(spawner: embassy_executor::Spawner) -> ! {
     spawner.spawn(i2c_service_task(i2c_bus).unwrap());
     spawner.spawn(ble_task(controller).unwrap());
     spawner.spawn(config_store::task(peripherals.FLASH).unwrap());
-    spawner.spawn(audio::task(
-        peripherals.I2S1,
-        peripherals.DMA_I2S1,
-        peripherals.GPIO12,
-        peripherals.GPIO0,
-        peripherals.GPIO2,
-    ).unwrap());
+    spawner.spawn(
+        audio::task(
+            peripherals.I2S1,
+            peripherals.DMA_I2S1,
+            peripherals.GPIO12,
+            peripherals.GPIO0,
+            peripherals.GPIO2,
+        )
+        .unwrap(),
+    );
 
     // Let the config task finish its initial flash read BEFORE the second core
     // starts. The first flash access disables the instruction cache; if the
@@ -659,12 +662,7 @@ async fn render_task(
                     }
                     pmic::PowerKey::Short => {
                         // Wake from sleep.
-                        wake_display(
-                            &mut display,
-                            &slint_window,
-                            current_backlight,
-                        )
-                        .await;
+                        wake_display(&mut display, &slint_window, current_backlight).await;
                         display_on = true;
                         info!("Display awake (power-key tap)");
                     }
@@ -672,12 +670,7 @@ async fn render_task(
                         // A hold opens the power menu; wake first if asleep so
                         // the menu is actually visible.
                         if !display_on {
-                            wake_display(
-                                &mut display,
-                                &slint_window,
-                                current_backlight,
-                            )
-                            .await;
+                            wake_display(&mut display, &slint_window, current_backlight).await;
                             display_on = true;
                         }
                         ui.set_show_power_menu(true);

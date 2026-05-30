@@ -9,7 +9,8 @@ use log::info;
 /// Initialize the AXP2101 PMIC following M5Stack Core2 v1.1 initialization sequence
 ///
 /// This follows the exact initialization sequence from M5Unified for Core2 v1.1:
-/// - PowerKey timing: Hold=1sec, PowerOff=4sec
+/// - PowerKey timing: long-press IRQ at 2.5 s, hard power-off at 10 s
+/// - Power-key short/long IRQs enabled (and cleared) for gesture detection
 /// - Internal off-discharge enabled for DCDC/LDO/SWITCH
 /// - BATFET disabled
 /// - Battery detection enabled
@@ -196,7 +197,11 @@ where
         })
         .await?;
 
-    Ok(Some(if long { PowerKey::Long } else { PowerKey::Short }))
+    Ok(Some(if long {
+        PowerKey::Long
+    } else {
+        PowerKey::Short
+    }))
 }
 
 /// Configure all M5Stack Core2 v1.1 power rails
