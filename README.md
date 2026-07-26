@@ -151,9 +151,9 @@ Driver crates from crates.io:
 Git dependencies:
 
 - [trouble-host](https://github.com/embassy-rs/trouble) — BLE GATT host stack (master branch)
-- [slint](https://github.com/okhsunrog/slint/tree/rgb565-be) — fork with `Rgb565PixelBE` so
-  the software renderer writes big-endian pixels directly for the ILI9342C, avoiding a
-  post-render byte swap. Tracks upstream.
+- [slint](https://github.com/slint-ui/slint/tree/master) — the software renderer's
+  `Rgb565BigEndianPixel` writes big-endian pixels directly for the ILI9342C, avoiding a
+  post-render byte swap.
 
 ## License
 

@@ -43,7 +43,7 @@ embedded-hal-async = "1.0"
 embassy-embedded-hal = "0.6"
 embassy-sync = "0.8"
 ft6336u-dd = { version = "0.1.0", features = ["log"] }
-slint = { git = "https://github.com/okhsunrog/slint", branch = "rgb565-be", default-features = false, features = ["unsafe-single-threaded", "libm", "renderer-software", "compat-1-2"] }
+slint = { git = "https://github.com/slint-ui/slint", branch = "master", default-features = false, features = ["unsafe-single-threaded", "libm", "renderer-software", "compat-1-2"] }
 ina3221-dd = { version = "0.1.0", features = ["log"] }
 pcf8563-dd = { version = "0.3.0", features = ["log"] }
 
@@ -94,7 +94,7 @@ opt-level = 3
 opt-level = 0
 
 [build-dependencies]
-slint-build = { git = "https://github.com/okhsunrog/slint", branch = "rgb565-be" }
+slint-build = { git = "https://github.com/slint-ui/slint", branch = "master" }
 
 # esp-hal fork: #5603 (DmaBuffer I2S API) + reset_tx/reset_rx read-back barrier.
 # Temporary until both PRs (#5603, #5609) land — then drop this whole block and

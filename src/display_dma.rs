@@ -6,7 +6,7 @@ use embedded_hal::spi::{ErrorKind, ErrorType, Operation, SpiBus, SpiDevice};
 use esp_hal::dma::DmaTxBuf;
 use esp_hal::spi::master::{SpiDma, SpiDmaTransfer};
 use esp_hal::{Blocking, spi};
-use slint::platform::software_renderer::{LineBufferProvider, Rgb565PixelBE};
+use slint::platform::software_renderer::{LineBufferProvider, Rgb565BigEndianPixel};
 
 const RAM_WRITE: u8 = 0x2c;
 const SET_COLUMN_ADDRESS: u8 = 0x2a;
@@ -15,7 +15,7 @@ const DISPLAY_OFF: u8 = 0x28;
 const DISPLAY_ON: u8 = 0x29;
 const SLEEP_IN: u8 = 0x10;
 const SLEEP_OUT: u8 = 0x11;
-const BYTES_PER_PIXEL: usize = core::mem::size_of::<Rgb565PixelBE>();
+const BYTES_PER_PIXEL: usize = core::mem::size_of::<Rgb565BigEndianPixel>();
 
 #[derive(Debug)]
 pub enum InitSpiDeviceError<SPI, CS> {
@@ -174,14 +174,14 @@ where
             return Err(DmaLineDisplayError::BufferTooSmall);
         }
 
-        // `process_line` reinterprets `render_buf` as `[Rgb565PixelBE]` via
+        // `process_line` reinterprets `render_buf` as `[Rgb565BigEndianPixel]` via
         // `bytemuck::cast_slice_mut`, which requires 2-byte alignment. DMA
         // buffers from `dma_buffers!` are word-aligned, so this holds, but
         // make the invariant explicit.
         debug_assert!(
             (first_buf.as_slice().as_ptr() as usize).is_multiple_of(2)
                 && (second_buf.as_slice().as_ptr() as usize).is_multiple_of(2),
-            "DMA buffers must be 2-byte aligned for Rgb565PixelBE casting"
+            "DMA buffers must be 2-byte aligned for Rgb565BigEndianPixel casting"
         );
 
         Ok(Self {
@@ -415,7 +415,7 @@ where
     CS: OutputPin,
     DC: OutputPin,
 {
-    type TargetPixel = Rgb565PixelBE;
+    type TargetPixel = Rgb565BigEndianPixel;
 
     fn process_line(
         &mut self,
@@ -455,7 +455,7 @@ where
             return;
         }
 
-        let pixels = bytemuck::cast_slice_mut::<u8, Rgb565PixelBE>(
+        let pixels = bytemuck::cast_slice_mut::<u8, Rgb565BigEndianPixel>(
             &mut render_buf.as_mut_slice()[..end_bytes],
         );
         render_fn(&mut pixels[offset_pixels..end_pixels]);
